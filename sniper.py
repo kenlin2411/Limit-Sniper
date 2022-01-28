@@ -5111,12 +5111,14 @@ def run():
                         #   If the option is selected
                         #
                         
-                        if token["MINIMUM_LIQUIDITY_IN_DOLLARS"] != 0:
-                            liquidity_result = check_liquidity_amount(token, token['_BASE_DECIMALS'], token['_WETH_DECIMALS'])
-                            if liquidity_result == 0:
-                                continue
-                            else:
-                                pass
+                        # No liquidity check for BUY as liquidity is not added yet when it's detected on Mempool !
+                        
+                        # if token["MINIMUM_LIQUIDITY_IN_DOLLARS"] != 0:
+                        #     liquidity_result = check_liquidity_amount(token, token['_BASE_DECIMALS'], token['_WETH_DECIMALS'])
+                        #     if liquidity_result == 0:
+                        #         continue
+                        #     else:
+                        #         pass
                         
                         if command_line_args.sim_buy:
                             tx = command_line_args.sim_buy
