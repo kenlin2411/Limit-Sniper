@@ -2653,15 +2653,18 @@ def handle_event(event, methodid, filter_id, id_pending, id_latest):
             if txFunction.lower() in methodid:
                 printt_ok("--------------------------------------------")
                 printt_ok("BOT FOUND AddLiquidity-like EVENT IN MEMPOOL")
+                printt_ok("")
                 printt_ok("Block:", txHashDetails['blockNumber'],
-                       f_id,
                        "- Function:", txFunction,
                        "- TxHash:", Web3.toHex(txHashDetails['hash']))
                 printt_ok("--------------------------------------------")
                 return True
             else:
-                if command_line_args.verbose == False:
-                    print(txHashDetails['blockNumber'], f_id, txFunction, txHashDetails['to'], txHashDetails['from'],  Web3.toHex(txHashDetails['hash']))
+                printt("Detected something, but it's not AddLiquidity",
+                       "- Block:", txHashDetails['blockNumber'],
+                       "- Function:", txFunction,
+                       "- TxHash:", Web3.toHex(txHashDetails['hash']))
+                printt_ok("--------------------------------------------")
                 return False
     except Exception as e:
         print(e)
