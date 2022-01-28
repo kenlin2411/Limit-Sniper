@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 from toolz.functoolz import do
 from web3 import Web3
+from web3.middleware import geth_poa_middleware
 from time import sleep, time
+import asyncio
 import json
 from jsmin import jsmin
 from decimal import Decimal
@@ -1179,7 +1181,9 @@ if settings['EXCHANGE'].lower() == 'pancakeswaptestnet':
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
-    
+
+    client.middleware_onion.inject(geth_poa_middleware, layer=0)
+
     print(timestamp(), "Binance Smart Chain testnet Connected =", client.isConnected())
     print(timestamp(), "Loading Smart Contracts...")
     
@@ -1187,7 +1191,7 @@ if settings['EXCHANGE'].lower() == 'pancakeswaptestnet':
         routerAddress = Web3.toChecksumAddress("0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F")
         factoryAddress = Web3.toChecksumAddress("0xbcfccbde45ce874adcb698cc183debcf17952812")
     elif settings['EXCHANGEVERSION'] == "2":
-        routerAddress = Web3.toChecksumAddress("0xD99D1c33F9fC3444f8101754aBC46c52416550D1")
+        routerAddress = Web3.toChecksumAddress("0x9ac64cc6e4415144c455bd8e4837fea55603e5c3")
         factoryAddress = Web3.toChecksumAddress("0x6725F303b657a9451d8BA641348b6761A6CC7a17")
     
     routerContract = client.eth.contract(address=routerAddress, abi=routerAbi)
@@ -2553,7 +2557,7 @@ def check_rugdoc_api(token):
             token['_QUOTE'] = 0
 
 
-def scan_mempool(token, inToken, outToken):
+def scan_mempool(token, methodid):
     printt_debug("ENTER scan_mempool")
     
     printt("")
@@ -2572,17 +2576,8 @@ def scan_mempool(token, inToken, outToken):
     if settings['MEMPOOL_METHOD'] == 'pinksale':
         tx_filter = client.eth.filter({"filter_params": "pending", "address": Web3.toChecksumAddress(token['PINKSALE_PRESALE_ADDRESS'])})
     else:
-        tx_filter = client.eth.filter({"filter_params": "pending", "address": inToken})
-    
-    if settings['MEMPOOL_METHOD'] == 'pinksale':
-        # Function: finalize() - check examples below
-        list_of_methodId = ["0x4bb278f3"]
-    else:
-        # We scan for AddLiquidity-kind of methods
-        # many examples here : https://www.4byte.directory/signatures/?sort=text_signature&page=633
-
-        list_of_methodId = ["0xf305d719", "0xe8e33700", "0xeaaed442", "0xa987e39d", "0xa62f0f32", "0x395d3384", "0xe8078d94", "0xed39257a", "0x3b2b65a0", "0xbe0ca465", "0xf5917c99", "0x44192a01", "0x2a3395b0", "0xe3412e3d", "0x6f24391a", "0x380ecef2", "0x00b071e1", "0xfde3b265", "0x011ad359", "0x6ac8ac29", "0x863f15cd", "0xde48a49b", "0xfbf45135", "0xd71a1bc5", "0xf91b3f72"]
-    
+        tx_filter = client.eth.filter({"filter_params": "pending", "address": token['ADDRESS']})
+        
     while liquidity_detected == False:
         
         try:
@@ -2592,7 +2587,7 @@ def scan_mempool(token, inToken, outToken):
                 txHashDetails = client.eth.get_transaction(txHash)
                 printt_debug(txHashDetails)
                 txFunction = txHashDetails.input[:10]
-                if txFunction.lower() in list_of_methodId:
+                if txFunction.lower() in methodid:
                     liquidity_detected = True
                     token['_GAS_IS_CALCULATED'] = True
                     token['_GAS_TO_USE'] = int(txHashDetails.gasPrice) / 1000000000
@@ -2605,7 +2600,111 @@ def scan_mempool(token, inToken, outToken):
         except Exception as e:
             printt_err("scan_mempool Error. It can happen with Public node : private node is recommended. Still, let's continue.")
             continue
+
+
+def scan_mempool_private_node(token, methodid):
+    printt_debug("ENTER scan_mempool_private_node")
     
+    printt("")
+    printt("--------------------------------------------------------")
+    printt("SCANNING MEMPOOL")
+    printt("")
+    printt("Bot will scan mempool to detect AddLiquidity functions")
+    printt("")
+    printt("--------------------------------------------------------")
+
+    printt_debug("methodid:", methodid)
+    openTrade = False
+    tokenAddress = Web3.toChecksumAddress(token['ADDRESS'])
+    while openTrade == False:
+        try:
+            tx_pool = client.geth.txpool.content()['pending'].items()
+            for k,v in tx_pool:
+                for k1, v1 in v.items():
+                    if v1['to'] == tokenAddress.lower() and v1['input'][:10] in methodid:
+                        printt_ok("")
+                        printt_ok("--------------------------------------------------------")
+                        printt_ok("WE FOUND SOMETHING IN MEMPOOL")
+                        printt_ok("")
+                        printt_ok("Bot detected a AddLiquidity Event:")
+                        printt("Block number:", client.eth.block_number, "- MethodID:", '\033[32m', v1['input'][:10], "- to:", v1['to'], "- from:", v1['from'], "- TxHash:", v1['hash'], '\033[0m')
+                        printt_debug(v1)
+                        printt_ok("")
+                        printt_ok("--------------------------------------------------------")
+                        openTrade = True
+                    else:
+                        if command_line_args.verbose == False:
+                            printt("Block number:", client.eth.block_number, "- MethodID:", v1['input'][:10], "- to:", v1['to'])
+        except Exception as e:
+            print(e)
+            continue
+
+
+def handle_event(event, methodid, filter_id, id_pending, id_latest):
+    f_id = 0
+    if filter_id == id_pending: f_id = 'pending'
+    if filter_id == id_latest: f_id = 'latest'
+
+    try:
+            txHash = event['transactionHash']
+            txHashDetails = client.eth.get_transaction(txHash)
+            txFunction = txHashDetails.input[:10]
+
+            if txFunction.lower() in methodid:
+                printt_ok("--------------------------------------------")
+                printt_ok("BOT FOUND AddLiquidity-like EVENT IN MEMPOOL")
+                printt_ok("Block:", txHashDetails['blockNumber'],
+                       f_id,
+                       "- Function:", txFunction,
+                       "- TxHash:", Web3.toHex(txHashDetails['hash']))
+                printt_ok("--------------------------------------------")
+                return True
+            else:
+                if command_line_args.verbose == False:
+                    print(txHashDetails['blockNumber'], f_id, txFunction, txHashDetails['to'], txHashDetails['from'],  Web3.toHex(txHashDetails['hash']))
+                return False
+    except Exception as e:
+        print(e)
+
+
+async def log_loop(fut, event_filter, methodid, poll_interval, id_pend, id_last):
+    while True:
+        for event in event_filter.get_new_entries():
+            result = handle_event(event, methodid, event_filter.filter_id, id_pend, id_last)
+            if result == True: fut.set_result('True')
+        #await asyncio.sleep(poll_interval)
+
+
+def scan_mempool_public_node(token, methodid):
+    printt_debug("ENTER scan_mempool_private_node")
+    
+    printt("")
+    printt("-----------------------------------------------------------")
+    printt("SCANNING MEMPOOL")
+    printt("")
+    printt("Bot will scan mempool to detect AddLiquidity functions")
+    printt("")
+    printt_warn("DO NOT CLOSE THE BOT - if nothing appears it's normal!")
+    printt("")
+    printt("-----------------------------------------------------------")
+    
+    tokenAddress = Web3.toChecksumAddress(token['ADDRESS'])
+    block_filter = client.eth.filter({"filter_params": "latest", "address": tokenAddress})
+    id_last = block_filter.filter_id
+    tx_filter = client.eth.filter({"filter_params": "pending", "address": tokenAddress})
+    id_pend = tx_filter.filter_id
+    loop = asyncio.get_event_loop()
+    fut = loop.create_future()
+
+    try:
+        loop.run_until_complete(
+            asyncio.gather(
+                log_loop(fut, block_filter, methodid, 0.0001, id_pend, id_last),
+                log_loop(fut, tx_filter, methodid, 0.0001, id_pend, id_last)))
+    finally:
+        loop.close()
+        return
+
 
 def wait_for_open_trade(token, inToken, outToken):
     printt_debug("ENTER wait_for_open_trade")
@@ -5077,9 +5176,20 @@ def run():
                         # MEMPOOL SCAN
                         #   Bot will scan the mempool for Liquidity Events
                         #
-                        scan_mempool(token, token['_IN_TOKEN'], token['_OUT_TOKEN'])
-                        
-    
+                        if settings['MEMPOOL_METHOD'] == 'pinksale':
+                            # Function: finalize() - check examples below
+                            methods_id = ["0x4bb278f3"]
+                        else:
+                            # We scan for AddLiquidity-kind of methods
+                            # many examples here : https://www.4byte.directory/signatures/?sort=text_signature&page=633
+                            methods_id = ["0xf305d719", "0xe8e33700", "0xeaaed442", "0xa987e39d", "0xa62f0f32", "0x395d3384", "0xe8078d94", "0xed39257a", "0x3b2b65a0", "0xbe0ca465", "0xf5917c99", "0x44192a01", "0x2a3395b0", "0xe3412e3d", "0x6f24391a", "0x380ecef2", "0x00b071e1", "0xfde3b265", "0x011ad359", "0x6ac8ac29", "0x863f15cd", "0xde48a49b", "0xfbf45135", "0xd71a1bc5", "0xf91b3f72"]
+
+                        if settings['KIND_OF_NODE'] == 'public_node':
+                            scan_mempool_public_node(token, methods_id)
+                        elif settings['KIND_OF_NODE'] == 'private_node':
+                            scan_mempool_private_node(token, methods_id)
+                        else:
+                            scan_mempool(token, methods_id)
                         #
                         # OPEN TRADE CHECK
                         #   If the option is selected, bot wait for trading_is_on == True to create a BUY order
