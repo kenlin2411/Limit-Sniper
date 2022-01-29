@@ -1000,7 +1000,7 @@ def token_list_report(tokens, all_pairs=False):
 
 def check_release():
     try:
-        url = 'https://api.github.com/repos/tsarbuig/LimitSwap/releases/latest'
+        url = 'https://api.github.com/repos/tsarbuig/Limit-Sniper/releases/latest'
         r = (requests.get(url).json()['tag_name'] + '\n')
         printt("Checking Latest Release Version on Github, Please Make Sure You are Staying Updated = ", r, write_to_log=True)
     except Exception:
@@ -1109,7 +1109,7 @@ printt("************************************************************************
 
 # Check for version
 #
-version = '4.2.1.2'
+version = '1.0.0'
 printt("YOUR BOT IS CURRENTLY RUNNING VERSION ", version, write_to_log=True)
 check_release()
 
