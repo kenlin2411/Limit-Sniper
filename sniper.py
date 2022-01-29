@@ -295,6 +295,10 @@ def printt_sell_price(token_dict, token_price):
     else:
         price_message = price_message + " - Token balance: " + str("{0:.4f}".format(token_dict['_TOKEN_BALANCE'])) + " (= " + "{0:.2f}".format(float(token_price) * float(token_dict['_TOKEN_BALANCE'])) + " " + token_dict['BASESYMBOL'] + ")"
 
+    # Display a message if MAXTOKENS is reached
+    if token_dict['_REACHED_MAX_TOKENS'] == True:
+        price_message = price_message + '\033[31m' + " - MAXTOKENS reached" + '\033[0m'
+        
 
     if price_message == token_dict['_LAST_PRICE_MESSAGE'] and settings['VERBOSE_PRICING'] == 'false':
         bot_settings['_NEED_NEW_LINE'] = False
@@ -1541,6 +1545,7 @@ elif settings["EXCHANGE"] == 'uniswaptestnet':
     base_symbol = "ETHt"
     rugdocchain = '&chain=eth'
     modified = False
+    settings['_EXCHANGE_BASE_SYMBOL'] = 'ETHt'
     settings['_STABLE_BASES'] = {'USDT':{ 'address': '0x3b00ef435fa4fcff5c209a37d1f3dcff37c705ad', 'multiplier' : 0},
                                  'USDC':{ 'address': '0x4dbcdf9b62e891a7cec5a2568c3f4faf9e8abe2b', 'multiplier' : 0}}
 
@@ -1911,6 +1916,43 @@ elif settings["EXCHANGE"] == 'cronos-crona':
     modified = False
     settings['_EXCHANGE_BASE_SYMBOL'] = 'CRO'
     settings['_STABLE_BASES'] = {'USDC':{ 'address': '0xc21223249ca28397b4b6541dffaecc539bff0c59', 'multiplier' : 0}}
+
+elif settings["EXCHANGE"] == 'viperswap':
+    if settings['USECUSTOMNODE'] == 'true':
+        my_provider = settings['CUSTOMNODE']
+    else:
+        my_provider = "https://api.harmony.one/"
+
+    if not my_provider:
+        printt_err('Custom node empty. Exiting')
+        exit(1)
+
+    if my_provider[0].lower() == 'h':
+        print(timestamp(), 'Using HTTPProvider')
+        client = Web3(Web3.HTTPProvider(my_provider))
+    elif my_provider[0].lower() == 'w':
+        print(timestamp(), 'Using WebsocketProvider')
+        client = Web3(Web3.WebsocketProvider(my_provider))
+    else:
+        print(timestamp(), 'Using IPCProvider')
+        client = Web3(Web3.IPCProvider(my_provider))
+
+    print(timestamp(), "HARMONY Chain Connected =", client.isConnected())
+    print(timestamp(), "Loading WONE Smart Contracts...")
+
+    routerAddress = Web3.toChecksumAddress("0xf012702a5f0e54015362cbca26a26fc90aa832a3")
+    factoryAddress = Web3.toChecksumAddress("0x7D02c116b98d0965ba7B642ace0183ad8b8D2196")
+
+    routerContract = client.eth.contract(address=routerAddress, abi=routerAbi)
+    factoryContract = client.eth.contract(address=factoryAddress, abi=factoryAbi)
+    weth = Web3.toChecksumAddress ("0xcf664087a5bb0237a0bad6742852ec6c8d69a27a")
+    base_symbol = "WONE"
+    rugdocchain = '&chain=one'
+    modified = False
+
+    settings['_EXCHANGE_BASE_SYMBOL'] = 'WONE'
+    settings['_STABLE_BASES'] = {'BUSD': {'address': '0xe176ebe47d621b984a73036b9da5d834411ef734', 'multiplier'  : 0},
+                                 'USDT': {'address': '0x3c2b8be99c50593081eaa2a724f0b8285f5aba8f', 'multiplier' : 0}}
 
 def get_password():
     # Function: get_password
@@ -3345,6 +3387,20 @@ def calculate_base_price():
         reserves = pair_contract.functions.getReserves().call()
         basePrice = Decimal((reserves[1] / DECIMALS_STABLES) / (reserves[0] / DECIMALS_ETH))
         printt_debug("MATIC PRICE: ", "{:.6f}".format(basePrice))
+    
+    elif base_symbol == "WONE":
+        DECIMALS_STABLES = 1000000000000000000
+        DECIMALS_ETH = 1000000000000000000
+
+        # USDC1 0x985458e523db3d53125813ed68c274899e9dfab4
+
+        pair_address = '0x6574026Db45bA8d49529145080489C3da71a82DF'
+
+        printt_debug("pair_address:", pair_address)
+        pair_contract = client.eth.contract(address=pair_address, abi=lpAbi)
+        reserves = pair_contract.functions.getReserves().call()
+        basePrice = Decimal((reserves[0] / DECIMALS_STABLES) / (reserves[1] / DECIMALS_ETH))
+        printt_debug("WONE PRICE: ", "{:.6f}".format(basePrice))
     
     else:
         printt_err("Unknown chain... please add it to calculate_base_price")
@@ -4975,9 +5031,11 @@ def benchmark():
         printt('Testing with USECUSTOMBASEPAIR ')
     
         token[0]['_BASE_DECIMALS'] = int(decimals(token[0]['BASEADDRESS']))
+        token[0]['_LIQUIDITY_DECIMALS'] = int(decimals(token[0]['BASEADDRESS']))
         outToken = Web3.toChecksumAddress(token[0]['BASEADDRESS'])
     else:
         token[0]['_BASE_DECIMALS'] = int(decimals(weth))
+        token[0]['_LIQUIDITY_DECIMALS'] = int(decimals(weth))
         outToken = weth
         
     start_time = time()
@@ -5143,7 +5201,17 @@ def run():
                             sys.exit()
 
                     tokens_json_already_loaded = tokens_json_already_loaded + 1
-                    raise Exception("tokens.json has been changed, reloading.")
+                    # Before changing tokens, we store them in a dict, to be able to re-use the internal values like "COST_PER_TOKEN"
+                    # The key to re-use them will be token['SYMBOL']
+                    #
+                    _TOKENS_saved = {}
+                    for token in tokens:
+                        _TOKENS_saved[token['SYMBOL']] = token
+
+                    reload_bot_settings(bot_settings)
+
+                    raise RestartAppError("tokens.json has been changed, reloading")
+
             else:
                 load_token_file_increment = load_token_file_increment + 1
             
@@ -5490,23 +5558,8 @@ def run():
     except Exception as ee:
         printt_debug("Debug 4839 - an Exception occured")
         logging.exception(ee)
-        printt_debug("tokens_json_already_loaded: ", tokens_json_already_loaded)
-        if tokens_json_already_loaded > 0:
-            printt_debug("Debug 4841 - reload_tokens_file condition")
-            
-            # Before changing tokens, we store them in a dict, to be able to re-use the internal values like "COST_PER_TOKEN"
-            # The key to re-use them will be token['SYMBOL']
-            #
-            _TOKENS_saved = {}
-            for token in tokens:
-                _TOKENS_saved[token['SYMBOL']] = token
-
-            reload_bot_settings(bot_settings)
-            sleep(0.01)
-            raise RestartAppError("Restarting LimitSwap")
-        else:
-            raise
-
+        raise
+    
 class RestartAppError(LookupError):
     '''raise this when there's a need to restart'''
 
@@ -5522,16 +5575,7 @@ def runLoop():
             printt_err("ERROR. Please go to /log folder and open your logs: you will find more details.")
             logging.exception(e)
             logger1.exception(e)
-            printt("Restarting LimitSwap")
-            # Cooldown Logic
-            timeout = 10
-            nonce = 0
-            while nonce<=timeout:
-                print(".........Restart Cooldown left " + str(timeout - nonce) + " seconds.............")
-                nonce += 1
-                sleep(1)
-                
-
+            sys.exit()
 
 
 try:
@@ -5568,14 +5612,4 @@ except Exception as e:
     printt_err("ERROR SETTINGS . Please go to /log folder and open your logs: you will find more details.")
     logging.exception(e)
     logger1.exception(e)
-    printt("Restarting LimitSwap")
-    # Cooldown Logic
-    timeout = 10
-    nonce = 0
-    while True:
-        printt_err("EXCEPTIONAL ERROR - Should not appear")
-        print(".........Restart Cooldown left " + str(timeout - nonce) + " seconds.............")
-        nonce += 1
-        sleep(1)
-        if nonce > timeout:
-            runLoop()
+    sys.exit()
