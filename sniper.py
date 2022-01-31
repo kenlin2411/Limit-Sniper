@@ -2580,7 +2580,7 @@ def scan_mempool(token, methodid):
     
     printt("")
     printt("--------------------------------------------------------")
-    printt("SCANNING MEMPOOL")
+    printt("SCANNING MEMPOOL - normal way")
     printt("")
     printt("Bot will scan mempool to detect AddLiquidity functions")
     printt("")
@@ -2625,7 +2625,7 @@ def scan_mempool_private_node(token, methodid):
     
     printt("")
     printt("--------------------------------------------------------")
-    printt("SCANNING MEMPOOL")
+    printt("SCANNING MEMPOOL - for Private node")
     printt("")
     printt("Bot will scan mempool to detect AddLiquidity functions")
     printt("")
@@ -2639,16 +2639,26 @@ def scan_mempool_private_node(token, methodid):
             tx_pool = client.geth.txpool.content()['pending'].items()
             for k,v in tx_pool:
                 for k1, v1 in v.items():
-                    if v1['to'] == tokenAddress.lower() and v1['input'][:10] in methodid:
+                    input_decoded = routerContract.decode_function_input(v1['input'])
+                    printt(input_decoded)
+
+                    if input_decoded[1]['token'] == tokenAddress and v1['input'][:10] in methodid:
                         printt_ok("")
                         printt_ok("--------------------------------------------------------")
                         printt_ok("WE FOUND SOMETHING IN MEMPOOL")
                         printt_ok("")
                         printt_ok("Bot detected a AddLiquidity Event:")
-                        printt("Block number:", client.eth.block_number, "- MethodID:", '\033[32m', v1['input'][:10], "- to:", v1['to'], "- from:", v1['from'], "- TxHash:", v1['hash'], '\033[0m')
+                        printt("Block number:", client.eth.block_number)
+                        printt("- MethodID:", v1['input'][:10])
+                        printt("- to:", v1['to'])
+                        printt("- from:", v1['from'])
+                        printt("- TxHash:", v1['hash'])
                         printt_debug(v1)
                         printt_ok("")
                         printt_ok("--------------------------------------------------------")
+
+                        printt_debug("input_decoded:", input_decoded)
+
                         openTrade = True
                     else:
                         if command_line_args.verbose == False:
@@ -2701,7 +2711,7 @@ def scan_mempool_public_node(token, methodid):
     
     printt("")
     printt("-----------------------------------------------------------")
-    printt("SCANNING MEMPOOL")
+    printt("SCANNING MEMPOOL - for Public node")
     printt("")
     printt("Bot will scan mempool to detect AddLiquidity functions")
     printt("")
@@ -5239,7 +5249,18 @@ def run():
                         else:
                             # We scan for AddLiquidity-kind of methods
                             # many examples here : https://www.4byte.directory/signatures/?sort=text_signature&page=633
-                            methods_id = ["0xf305d719", "0xe8e33700", "0xeaaed442", "0xa987e39d", "0xa62f0f32", "0x395d3384", "0xe8078d94", "0xed39257a", "0x3b2b65a0", "0xbe0ca465", "0xf5917c99", "0x44192a01", "0x2a3395b0", "0xe3412e3d", "0x6f24391a", "0x380ecef2", "0x00b071e1", "0xfde3b265", "0x011ad359", "0x6ac8ac29", "0x863f15cd", "0xde48a49b", "0xfbf45135", "0xd71a1bc5", "0xf91b3f72"]
+                            methods_id = ["0xf305d719", "0xf91b3f72", "0xe8e33700", "0xeaaed442", "0xa987e39d", "0xa62f0f32", "0x395d3384", "0xe8078d94", "0xed39257a", "0x3b2b65a0", "0xbe0ca465", "0xf5917c99", "0x44192a01", "0x2a3395b0", "0xe3412e3d", "0x6f24391a", "0x380ecef2", "0x00b071e1", "0xfde3b265", "0x011ad359", "0x6ac8ac29", "0x863f15cd", "0xde48a49b", "0xfbf45135", "0xd71a1bc5"]
+
+                            # Examples of tokens and functions used for AddLiquidity
+                            # (I don't display the usual "addLiquidityETH" / etc. ones
+                            #
+                            # https://etherscan.io/tx/0x5241874905739ac52a65c048af6b69532a247febb18be080885f282d02978759
+                            # Function: execTransaction (on ShibaSwap --> needs to be implemented)
+                            # MethodID: 0x6a761202
+                            #
+                            # https://bscscan.com/tx/0xeb86daec5cd7a646e28ed9cfc392f6d0b11e259bce15b7b905bef017ddd9b1af
+                            # Function: addLiquidity() *** (on UniCrypt --> needs to be implemented)
+                            # MethodID: 0xe8078d94
 
                         if settings['KIND_OF_NODE'] == 'public_node':
                             scan_mempool_public_node(token, methods_id)
@@ -5311,8 +5332,13 @@ def run():
                                 printt_err("-------------------------------")
 
                                 # Apprise notification
-                                if settings['ENABLE_APPRISE_NOTIFICATIONS'] == 'true':
-                                    apprise_notification(token, 'buy_failure')
+                                try:
+                                    if settings['ENABLE_APPRISE_NOTIFICATIONS'] == 'true':
+                                        apprise_notification(token, 'buy_failure')
+                                except Exception as e:
+                                    printt_err("An error occured when using Apprise notification --> check your settings.")
+                                    logging.exception(e)
+                                    logger1.exception(e)
 
                                 # increment _FAILED_TRANSACTIONS amount
                                 token['_FAILED_TRANSACTIONS'] += 1
@@ -5345,8 +5371,13 @@ def run():
                                 printt_ok("----------------------------------", write_to_log=True)
                                 
                                 # Apprise notification
-                                if settings['ENABLE_APPRISE_NOTIFICATIONS'] == 'true':
-                                    apprise_notification(token,'buy_success')
+                                try:
+                                    if settings['ENABLE_APPRISE_NOTIFICATIONS'] == 'true':
+                                        apprise_notification(token, 'buy_success')
+                                except Exception as e:
+                                    printt_err("An error occured when using Apprise notification --> check your settings.")
+                                    logging.exception(e)
+                                    logger1.exception(e)
 
                                 # if user has chose the option "instantafterbuy", token is approved right after buy order is confirmed.
                                 if (settings['PREAPPROVE'] == 'instantafterbuy' or settings['PREAPPROVE'] == 'true'):
@@ -5501,9 +5532,13 @@ def run():
                                 token['_FAILED_TRANSACTIONS'] += 1
                                 
                                 # Apprise notification
-                                if settings['ENABLE_APPRISE_NOTIFICATIONS'] == 'true':
-                                    apprise_notification(token,'sell_failure')
-
+                                try:
+                                    if settings['ENABLE_APPRISE_NOTIFICATIONS'] == 'true':
+                                        apprise_notification(token, 'sell_failure')
+                                except Exception as e:
+                                    printt_err("An error occured when using Apprise notification --> check your settings.")
+                                    logging.exception(e)
+                                    logger1.exception(e)
                                 
                                 # We ask the bot to check if your allowance is > to your balance.
                                 check_approval(token, token['_IN_TOKEN'], token['_TOKEN_BALANCE'] * 1000000000000000000, 'txfail')
@@ -5515,8 +5550,13 @@ def run():
                                 printt_ok("SUCCESS : your sell Tx is confirmed    ", write_to_log=True)
                                 
                                 # Apprise notification
-                                if settings['ENABLE_APPRISE_NOTIFICATIONS'] == 'true':
-                                    apprise_notification(token, 'sell_success')
+                                try:
+                                    if settings['ENABLE_APPRISE_NOTIFICATIONS'] == 'true':
+                                        apprise_notification(token, 'sell_success')
+                                except Exception as e:
+                                    printt_err("An error occured when using Apprise notification --> check your settings.")
+                                    logging.exception(e)
+                                    logger1.exception(e)
 
                                 # Optional cooldown after SUCCESS sell, if you use XXX_SECONDS_COOLDOWN_AFTER_SELL_SUCCESS_TX parameter
                                 if token['XXX_SECONDS_COOLDOWN_AFTER_SELL_SUCCESS_TX'] != 0:
