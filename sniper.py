@@ -282,12 +282,12 @@ def printt_sell_price(token_dict, token_price):
     printt_debug("_PREVIOUS_QUOTE :", token_dict['_PREVIOUS_QUOTE'], "for token:", token_dict['SYMBOL'])
     
     if token_dict['USECUSTOMBASEPAIR'] == 'false':
-        price_message = token_dict['_PAIR_SYMBOL'] + " Price: " + "{0:.24f}".format(token_price) + " " + base_symbol + " - Buy:" + str(token_dict['BUYPRICEINBASE'])
+        price_message = token_dict['_PAIR_SYMBOL'] + " Price: " + "{0:.24f}".format(token_price) + " " + base_symbol
     
     else:
-        price_message = token_dict['_PAIR_SYMBOL'] + " Price: " + "{0:.24f}".format(token_price) + " " + token_dict['BASESYMBOL'] + " - Buy:" + str(token_dict['BUYPRICEINBASE'])
+        price_message = token_dict['_PAIR_SYMBOL'] + " Price: " + "{0:.24f}".format(token_price) + " " + token_dict['BASESYMBOL']
     
-    price_message = price_message + " Sell:" + str(token_dict['_CALCULATED_SELLPRICEINBASE']) + " Stop:" + str(token_dict['_CALCULATED_STOPLOSSPRICEINBASE'])
+    price_message = price_message + " - Sell:" + str(token_dict['_CALCULATED_SELLPRICEINBASE']) + " Stop:" + str(token_dict['_CALCULATED_STOPLOSSPRICEINBASE'])
     # price_message = price_message + " ATH:" + "{0:.24f}".format(token_dict['_ALL_TIME_HIGH']) + " ATL:" + "{0:.24f}".format(token_dict['_ALL_TIME_LOW'])
 
     if token_dict['USECUSTOMBASEPAIR'] == 'false':
@@ -547,7 +547,6 @@ def load_tokens_file(tokens_path, load_message=True):
     required_user_settings = [
         'ADDRESS',
         'BUYAMOUNTINBASE',
-        'BUYPRICEINBASE',
         'SELLPRICEINBASE'
     ]
     
@@ -572,7 +571,7 @@ def load_tokens_file(tokens_path, load_message=True):
         'BUYAMOUNTINTOKEN': 0,
         'MAXTOKENS': 0,
         'MOONBAG': 0,
-        'MINIMUM_LIQUIDITY_IN_DOLLARS': 10000,
+        'MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL': 10000,
         'MAX_BASE_AMOUNT_PER_EXACT_TOKENS_TRANSACTION': 0.5,
         'SELLAMOUNTINTOKENS': 'all',
         'GAS': 8,
@@ -790,7 +789,6 @@ def reload_tokens_file(tokens_path, load_message=True):
     required_user_settings = [
         'ADDRESS',
         'BUYAMOUNTINBASE',
-        'BUYPRICEINBASE',
         'SELLPRICEINBASE'
     ]
 
@@ -815,7 +813,7 @@ def reload_tokens_file(tokens_path, load_message=True):
         'BUYAMOUNTINTOKEN': 0,
         'MAXTOKENS': 0,
         'MOONBAG': 0,
-        'MINIMUM_LIQUIDITY_IN_DOLLARS': 10000,
+        'MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL': 10000,
         'MAX_BASE_AMOUNT_PER_EXACT_TOKENS_TRANSACTION': 0.5,
         'SELLAMOUNTINTOKENS': 'all',
         'GAS': 8,
@@ -1172,7 +1170,7 @@ if settings['EXCHANGE'].lower() == 'pancakeswaptestnet':
         my_provider = settings['CUSTOMNODE']
         print(timestamp(), 'Using custom node.')
     else:
-        my_provider = "https://data-seed-prebsc-1-s2.binance.org:8545"
+        my_provider = "https://data-seed-prebsc-2-s3.binance.org:8545"
     
     if not my_provider:
         print(timestamp(), 'Custom node empty. Exiting')
@@ -2103,10 +2101,9 @@ def build_extended_base_configuration(token_dict):
         if token_dict['_CALCULATED_SELLPRICEINBASE'] == 99999:
             new_token.update({
                 'BUYAMOUNTINBASE': token_dict['BUYAMOUNTINBASE'] * settings['_STABLE_BASES'][stable_token]['multiplier'],
-                "BUYPRICEINBASE": token_dict['BUYPRICEINBASE'] * settings['_STABLE_BASES'][stable_token]['multiplier'],
                 "SELLPRICEINBASE": token_dict['_CALCULATED_SELLPRICEINBASE'],
                 "STOPLOSSPRICEINBASE": token_dict['_CALCULATED_STOPLOSSPRICEINBASE'],
-                "MINIMUM_LIQUIDITY_IN_DOLLARS": token_dict['MINIMUM_LIQUIDITY_IN_DOLLARS'],
+                "MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL": token_dict['MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL'],
                 "USECUSTOMBASEPAIR": "true",
                 "LIQUIDITYINNATIVETOKEN": "false",
                 "BASESYMBOL": stable_token,
@@ -2118,10 +2115,9 @@ def build_extended_base_configuration(token_dict):
         else:
             new_token.update({
                 'BUYAMOUNTINBASE': token_dict['BUYAMOUNTINBASE'] * settings['_STABLE_BASES'][stable_token]['multiplier'],
-                "BUYPRICEINBASE": token_dict['BUYPRICEINBASE'] * settings['_STABLE_BASES'][stable_token]['multiplier'],
                 "SELLPRICEINBASE": float(token_dict['_CALCULATED_SELLPRICEINBASE']) * float(settings['_STABLE_BASES'][stable_token]['multiplier']),
                 "STOPLOSSPRICEINBASE": float(token_dict['_CALCULATED_STOPLOSSPRICEINBASE']) * float(settings['_STABLE_BASES'][stable_token]['multiplier']),
-                "MINIMUM_LIQUIDITY_IN_DOLLARS": token_dict['MINIMUM_LIQUIDITY_IN_DOLLARS'],
+                "MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL": token_dict['MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL'],
                 "USECUSTOMBASEPAIR": "true",
                 "LIQUIDITYINNATIVETOKEN": "false",
                 "BASESYMBOL": stable_token,
@@ -2704,7 +2700,10 @@ def scan_mempool_classic(token):
                 
                     # Let's snipe!
                     if token_check:
-                        printt_debug("break 4")
+                        printt_debug("pending['gasPrice']:", pending['gasPrice'])
+                        token['_GAS_IS_CALCULATED'] = True
+                        token['_GAS_TO_USE'] = int(pending['gasPrice']) / 1000000000
+
                         printt_ok("")
                         printt_ok("--------------------------------------------------------")
                         printt_ok("WE FOUND SOMETHING IN MEMPOOL")
@@ -2712,9 +2711,11 @@ def scan_mempool_classic(token):
                         printt("- Block number:", pending_block['number'])
                         printt("- Function:", str(decoded[0]))
                         printt("- TxHash:", pending['hash'].hex())
+                        printt("- GAS will be the same as liquidity adding event for your BUY Tx: GAS=", token['_GAS_TO_USE'])
                         printt_ok("")
                         printt_ok("--------------------------------------------------------")
 
+                        
                         openTrade = True
                 
                     else:
@@ -3140,8 +3141,8 @@ def check_liquidity_amount(token, DECIMALS_OUT, DECIMALS_weth):
         printt("Current", token['_PAIR_SYMBOL'], "Liquidity =", "{:.2f}".format(liquidity_amount_in_dollars), "$")
         printt("")
         
-        if float(token['MINIMUM_LIQUIDITY_IN_DOLLARS']) <= float(liquidity_amount_in_dollars):
-            printt_ok("MINIMUM_LIQUIDITY_IN_DOLLARS parameter =", int(token['MINIMUM_LIQUIDITY_IN_DOLLARS']), " --> Enough liquidity detected : Buy Signal Found!")
+        if float(token['MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL']) <= float(liquidity_amount_in_dollars):
+            printt_ok("MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL parameter =", int(token['MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL']), " --> Enough liquidity detected : Buy Signal Found!")
             return 1
         
         # This position isn't looking good. Inform the user, disable the token and break out of this loop
@@ -3149,7 +3150,7 @@ def check_liquidity_amount(token, DECIMALS_OUT, DECIMALS_weth):
             printt_warn("------------------------------------------------", write_to_log=True)
             printt_warn("NOT ENOUGH LIQUIDITY", write_to_log=True)
             printt_warn("", write_to_log=True)
-            printt_warn("- You have set MINIMUM_LIQUIDITY_IN_DOLLARS  =", token['MINIMUM_LIQUIDITY_IN_DOLLARS'], "$", write_to_log=True)
+            printt_warn("- You have set MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL  =", token['MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL'], "$", write_to_log=True)
             printt_warn("- Liquidity detected for", token['SYMBOL'], "=", "{:.2f}".format(liquidity_amount_in_dollars), "$", write_to_log=True)
             printt_warn("--> Bot will not buy and disable token", write_to_log=True)
             printt_warn("------------------------------------------------", write_to_log=True)
@@ -3180,8 +3181,8 @@ def check_liquidity_amount(token, DECIMALS_OUT, DECIMALS_weth):
 
         printt("Current", token['SYMBOL'], "Liquidity =", "{:.6f}".format(liquidity_amount_in_dollars), "$")
         
-        if float(token['MINIMUM_LIQUIDITY_IN_DOLLARS']) <= float(liquidity_amount_in_dollars):
-            printt_ok("MINIMUM_LIQUIDITY_IN_DOLLARS parameter =", int(token['MINIMUM_LIQUIDITY_IN_DOLLARS']), " --> Enough liquidity detected : Buy Signal Found!")
+        if float(token['MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL']) <= float(liquidity_amount_in_dollars):
+            printt_ok("MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL parameter =", int(token['MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL']), " --> Enough liquidity detected : Buy Signal Found!")
             return 1
         
         # This position isn't looking good. Inform the user, disable the token and break out of this loop
@@ -3189,7 +3190,7 @@ def check_liquidity_amount(token, DECIMALS_OUT, DECIMALS_weth):
             printt_warn("------------------------------------------------", write_to_log=True)
             printt_warn("NOT ENOUGH LIQUIDITY", write_to_log=True)
             printt_warn("", write_to_log=True)
-            printt_warn("- You have set MINIMUM_LIQUIDITY_IN_DOLLARS  =", token['MINIMUM_LIQUIDITY_IN_DOLLARS'], "$", write_to_log=True)
+            printt_warn("- You have set MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL  =", token['MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL'], "$", write_to_log=True)
             printt_warn("- Liquidity detected for", token['SYMBOL'], "=", "{:.2f}".format(liquidity_amount_in_dollars), "$", write_to_log=True)
             printt_warn("--> Bot will not buy and disable token", write_to_log=True)
             printt_warn("------------------------------------------------", write_to_log=True)
@@ -3702,6 +3703,7 @@ def make_the_buy(inToken, outToken, buynumber, pwd, amount, gas, gaslimit, gaspr
     #
     printt_debug("ENTER make_the_buy")
 
+    printt_ok("")
     printt_ok("--------------------------------------------------------------------------------")
     printt_ok("KIND_OF_SWAP = base  --> bot will use BUYAMOUNTINBASE")
     printt_ok(" ")
@@ -5357,8 +5359,6 @@ def run():
                     #
                     if token['_TOKEN_BALANCE'] < token['MAXTOKENS']:
                         #
-                        printt_info("Token balance < MAXTOKENS --> entering BUY mode. Let's scan mempool!")
-                        #
                         # MEMPOOL SCAN
                         #   Bot will scan the mempool for Liquidity Events
                         #
@@ -5392,153 +5392,138 @@ def run():
                         #     scan_mempool_classic(token)
                         # else:
                         #     scan_mempool(token, methods_id)
-                        
-                        scan_mempool_classic(token)
+                        if token['_BUY_IS_MADE'] == False:
+                            scan_mempool_classic(token)
 
                         #
                         # OPEN TRADE CHECK
                         #   If the option is selected, bot wait for trading_is_on == True to create a BUY order
                         #
     
-                        if token['WAIT_FOR_OPEN_TRADE'].lower() == 'true' or token['WAIT_FOR_OPEN_TRADE'].lower() == 'true_no_message' or token['WAIT_FOR_OPEN_TRADE'] == 'mempool' or token['WAIT_FOR_OPEN_TRADE'] == 'pinksale':
-                            wait_for_open_trade(token, token['_IN_TOKEN'], token['_OUT_TOKEN'])
-    
-                        printt_debug(token)
-                        #
-                        # PURCHASE POSITION
-                        #   If we've passed all checks, attempt to purchase the token
-                        #
-                        printt_debug("===========================================")
-                        printt_debug("token['_QUOTE']:", token['_QUOTE'])
-                        printt_debug("Buy Price:", Decimal(token['BUYPRICEINBASE']))
-                        printt_debug("_REACHED_MAX_SUCCESS_TX:", token['_REACHED_MAX_SUCCESS_TX'])
-                        printt_debug("_REACHED_MAX_TOKENS:", token['_REACHED_MAX_TOKENS'])
-                        printt_debug("===========================================")
-                        
-                        printt_ok("")
-                        printt_ok("-----------------------------------------------------------", write_to_log=True)
-                        printt_ok("Buy Signal Found =-= Buy Signal Found =-= Buy Signal Found ", write_to_log=True)
-                        printt_ok("-----------------------------------------------------------", write_to_log=True)
-                        printt_ok("")
+                            if token['WAIT_FOR_OPEN_TRADE'].lower() == 'true' or token['WAIT_FOR_OPEN_TRADE'].lower() == 'true_no_message' or token['WAIT_FOR_OPEN_TRADE'] == 'mempool' or token['WAIT_FOR_OPEN_TRADE'] == 'pinksale':
+                                wait_for_open_trade(token, token['_IN_TOKEN'], token['_OUT_TOKEN'])
+        
+                            printt_debug(token)
 
-                        #
-                        # LIQUIDITY CHECK
-                        #   If the option is selected
-                        #
-                        
-                        # No liquidity check for BUY as liquidity is not added yet when it's detected on Mempool !
-                        
-                        # if token["MINIMUM_LIQUIDITY_IN_DOLLARS"] != 0:
-                        #     liquidity_result = check_liquidity_amount(token, token['_BASE_DECIMALS'], token['_WETH_DECIMALS'])
-                        #     if liquidity_result == 0:
-                        #         continue
-                        #     else:
-                        #         pass
-                        
-                        if command_line_args.sim_buy:
-                            tx = command_line_args.sim_buy
-                        else:
-                            tx = buy(token, token['_OUT_TOKEN'], token['_IN_TOKEN'], userpassword)
-
-                        if tx != False:
-                            txbuyresult = wait_for_tx(token, tx, token['ADDRESS'])
-                            printt_debug("wait_for_tx result is : ", txbuyresult)
-                            if txbuyresult != 1:
-                                # transaction is a FAILURE
-                                printt_err("-------------------------------", write_to_log=True)
-                                printt_err("   BUY TRANSACTION FAILURE !")
-                                printt_err("-------------------------------")
-                                printt_err("Type of failures and possible causes:")
-                                printt_err("- TRANSFER_FROM_FAILED         --> GASLIMIT too low. Raise it to GASLIMIT = 1000000 at least")
-                                printt_err("- TRANSFER_FROM_FAILED         --> Your BASE token is not approved for trade")
-                                printt_err("- INSUFFICIENT_OUTPUT_AMOUNT   --> SLIPPAGE too low")
-                                printt_err("- TRANSFER_FAILED              --> Trading is not enabled. Use WAIT_FOR_OPEN_TRADE parameter after reading wiki")
-                                printt_err("- TRANSFER_FAILED              --> There is a whitelist")
-                                printt_err("- Sorry, We are unable to locate this TxnHash --> You don't have enough funds on your wallet to cover fees")
-                                printt_err("- ... or your node is not working well")
-                                printt_err("-------------------------------")
-
-                                # Apprise notification
-                                try:
-                                    if settings['ENABLE_APPRISE_NOTIFICATIONS'] == 'true':
-                                        apprise_notification(token, 'buy_failure')
-                                except Exception as e:
-                                    printt_err("An error occured when using Apprise notification --> check your settings.")
-                                    logging.exception(e)
-                                    logger1.exception(e)
-
-                                # increment _FAILED_TRANSACTIONS amount
-                                token['_FAILED_TRANSACTIONS'] += 1
-                                printt_debug("3813 _FAILED_TRANSACTIONS:", token['_FAILED_TRANSACTIONS'])
-                                
-                                # Check if Base pair is approved, in case of TRANSFER_FROM_FAILED
-                                preapprove_base(token)
-
-                                # If user selected WAIT_FOR_OPEN_TRADE = 'XXX_after_buy_tx_failed" bot enters WAIT_FOR_OPEN_TRADE mode
-                                if token['WAIT_FOR_OPEN_TRADE'].lower() == 'true_after_buy_tx_failed' or token['WAIT_FOR_OPEN_TRADE'].lower() == 'true_after_buy_tx_failed_no_message' or token['WAIT_FOR_OPEN_TRADE'] == 'mempool_after_buy_tx_failed':
-                                    wait_for_open_trade(token, token['_IN_TOKEN'], token['_OUT_TOKEN'])
-
+                            #
+                            # LIQUIDITY CHECK
+                            #   If the option is selected
+                            #
+                            
+                            # No liquidity check for BUY as liquidity is not added yet when it's detected on Mempool !
+                            
+                            # if token["MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL"] != 0:
+                            #     liquidity_result = check_liquidity_amount(token, token['_BASE_DECIMALS'], token['_WETH_DECIMALS'])
+                            #     if liquidity_result == 0:
+                            #         continue
+                            #     else:
+                            #         pass
+                            
+                            if command_line_args.sim_buy:
+                                tx = command_line_args.sim_buy
                             else:
-                                # transaction is a SUCCESS
-                                printt_ok("----------------------------------", write_to_log=True)
-                                printt_ok("SUCCESS : your buy Tx is confirmed", write_to_log=True)
-                                printt_ok("")
-
-                                # Save previous token balance before recalculating
-                                token['_PREVIOUS_TOKEN_BALANCE'] = token['_TOKEN_BALANCE']
-                                
-                                # Re-calculate balances after buy()
-                                calculate_base_balance(token)
-                                
-                                # Check the balance of our wallet
-                                DECIMALS = token['_CONTRACT_DECIMALS']
-                                token['_TOKEN_BALANCE'] = check_balance(token['_IN_TOKEN'], token['SYMBOL'],display_quantity=True) / DECIMALS
-                                printt_ok("", write_to_log=True)
-                                printt_ok("You bought", token['_TOKEN_BALANCE'] - token['_PREVIOUS_TOKEN_BALANCE'], token['SYMBOL'], "tokens", write_to_log=True)
-                                printt_ok("----------------------------------", write_to_log=True)
-                                
-                                # Apprise notification
-                                try:
-                                    if settings['ENABLE_APPRISE_NOTIFICATIONS'] == 'true':
-                                        apprise_notification(token, 'buy_success')
-                                except Exception as e:
-                                    printt_err("An error occured when using Apprise notification --> check your settings.")
-                                    logging.exception(e)
-                                    logger1.exception(e)
-
-                                # if user has chose the option "instantafterbuy", token is approved right after buy order is confirmed.
-                                if (settings['PREAPPROVE'] == 'instantafterbuy' or settings['PREAPPROVE'] == 'true'):
-                                    check_approval(token, token['ADDRESS'], token['_TOKEN_BALANCE'] * DECIMALS, 'preapprove')
-
-                                # Optional cooldown after SUCCESS buy, if you use XXX_SECONDS_COOLDOWN_AFTER_BUY_SUCCESS_TX parameter
-                                if token['XXX_SECONDS_COOLDOWN_AFTER_BUY_SUCCESS_TX'] != 0:
-                                    printt_info("Bot will wait", token['XXX_SECONDS_COOLDOWN_AFTER_BUY_SUCCESS_TX'], "seconds after BUY, due to XXX_SECONDS_COOLDOWN_AFTER_BUY_SUCCESS_TX parameter", write_to_log=True)
-                                    sleep(token['XXX_SECONDS_COOLDOWN_AFTER_BUY_SUCCESS_TX'])
-
-                                # increment _SUCCESS_TRANSACTIONS amount
-                                token['_SUCCESS_TRANSACTIONS'] += 1
-                                printt_debug("3840 _SUCCESS_TRANSACTIONS:", token['_SUCCESS_TRANSACTIONS'])
-                                
-                                # Check if MAX_SUCCESS_TRANSACTIONS_IN_A_ROW is reached or not
-                                if token['_SUCCESS_TRANSACTIONS'] >= token['MAX_SUCCESS_TRANSACTIONS_IN_A_ROW']:
-                                    token['_REACHED_MAX_SUCCESS_TX'] = True
-                                    printt_warn("You have reached MAX_SUCCESS_TRANSACTIONS_IN_A_ROW for", token['SYMBOL'], "token --> disabling trade", write_to_log=True)
-
-                                printt_info("")
-                                printt_info("--------------------------------------------")
-                                printt_info("   Buy is now made --> Entering SELL MODE")
-                                printt_info("--------------------------------------------")
-                                printt_info("")
-
-                                # Build sell conditions for the token
-                                build_sell_conditions(token, 'after_buy', 'show_message')
-                                
-                                printt_debug(tokens)
-
-                        else:
-                            continue
-
-
+                                tx = buy(token, token['_OUT_TOKEN'], token['_IN_TOKEN'], userpassword)
+    
+                            if tx != False:
+                                txbuyresult = wait_for_tx(token, tx, token['ADDRESS'])
+                                printt_debug("wait_for_tx result is : ", txbuyresult)
+                                if txbuyresult != 1:
+                                    # transaction is a FAILURE
+                                    printt_err("-------------------------------", write_to_log=True)
+                                    printt_err("   BUY TRANSACTION FAILURE !")
+                                    printt_err("-------------------------------")
+                                    printt_err("Type of failures and possible causes:")
+                                    printt_err("- TRANSFER_FROM_FAILED         --> GASLIMIT too low. Raise it to GASLIMIT = 1000000 at least")
+                                    printt_err("- TRANSFER_FROM_FAILED         --> Your BASE token is not approved for trade")
+                                    printt_err("- INSUFFICIENT_OUTPUT_AMOUNT   --> SLIPPAGE too low")
+                                    printt_err("- TRANSFER_FAILED              --> Trading is not enabled. Use WAIT_FOR_OPEN_TRADE parameter after reading wiki")
+                                    printt_err("- TRANSFER_FAILED              --> There is a whitelist")
+                                    printt_err("- Sorry, We are unable to locate this TxnHash --> You don't have enough funds on your wallet to cover fees")
+                                    printt_err("- ... or your node is not working well")
+                                    printt_err("-------------------------------")
+    
+                                    # Apprise notification
+                                    try:
+                                        if settings['ENABLE_APPRISE_NOTIFICATIONS'] == 'true':
+                                            apprise_notification(token, 'buy_failure')
+                                    except Exception as e:
+                                        printt_err("An error occured when using Apprise notification --> check your settings.")
+                                        logging.exception(e)
+                                        logger1.exception(e)
+    
+                                    # increment _FAILED_TRANSACTIONS amount
+                                    token['_FAILED_TRANSACTIONS'] += 1
+                                    printt_debug("3813 _FAILED_TRANSACTIONS:", token['_FAILED_TRANSACTIONS'])
+                                    
+                                    # Check if Base pair is approved, in case of TRANSFER_FROM_FAILED
+                                    preapprove_base(token)
+    
+                                    # If user selected WAIT_FOR_OPEN_TRADE = 'XXX_after_buy_tx_failed" bot enters WAIT_FOR_OPEN_TRADE mode
+                                    if token['WAIT_FOR_OPEN_TRADE'].lower() == 'true_after_buy_tx_failed' or token['WAIT_FOR_OPEN_TRADE'].lower() == 'true_after_buy_tx_failed_no_message' or token['WAIT_FOR_OPEN_TRADE'] == 'mempool_after_buy_tx_failed':
+                                        wait_for_open_trade(token, token['_IN_TOKEN'], token['_OUT_TOKEN'])
+    
+                                else:
+                                    # transaction is a SUCCESS
+                                    printt_ok("----------------------------------", write_to_log=True)
+                                    printt_ok("SUCCESS : your buy Tx is confirmed", write_to_log=True)
+                                    printt_ok("")
+    
+                                    # Save previous token balance before recalculating
+                                    token['_PREVIOUS_TOKEN_BALANCE'] = token['_TOKEN_BALANCE']
+                                    
+                                    # Re-calculate balances after buy()
+                                    calculate_base_balance(token)
+                                    
+                                    # Check the balance of our wallet
+                                    DECIMALS = token['_CONTRACT_DECIMALS']
+                                    token['_TOKEN_BALANCE'] = check_balance(token['_IN_TOKEN'], token['SYMBOL'],display_quantity=True) / DECIMALS
+                                    printt_ok("", write_to_log=True)
+                                    printt_ok("You bought", token['_TOKEN_BALANCE'] - token['_PREVIOUS_TOKEN_BALANCE'], token['SYMBOL'], "tokens", write_to_log=True)
+                                    printt_ok("----------------------------------", write_to_log=True)
+                                    
+                                    # Apprise notification
+                                    try:
+                                        if settings['ENABLE_APPRISE_NOTIFICATIONS'] == 'true':
+                                            apprise_notification(token, 'buy_success')
+                                    except Exception as e:
+                                        printt_err("An error occured when using Apprise notification --> check your settings.")
+                                        logging.exception(e)
+                                        logger1.exception(e)
+    
+                                    # if user has chose the option "instantafterbuy", token is approved right after buy order is confirmed.
+                                    if (settings['PREAPPROVE'] == 'instantafterbuy' or settings['PREAPPROVE'] == 'true'):
+                                        check_approval(token, token['ADDRESS'], token['_TOKEN_BALANCE'] * DECIMALS, 'preapprove')
+    
+                                    # Optional cooldown after SUCCESS buy, if you use XXX_SECONDS_COOLDOWN_AFTER_BUY_SUCCESS_TX parameter
+                                    if token['XXX_SECONDS_COOLDOWN_AFTER_BUY_SUCCESS_TX'] != 0:
+                                        printt_info("Bot will wait", token['XXX_SECONDS_COOLDOWN_AFTER_BUY_SUCCESS_TX'], "seconds after BUY, due to XXX_SECONDS_COOLDOWN_AFTER_BUY_SUCCESS_TX parameter", write_to_log=True)
+                                        sleep(token['XXX_SECONDS_COOLDOWN_AFTER_BUY_SUCCESS_TX'])
+    
+                                    # increment _SUCCESS_TRANSACTIONS amount
+                                    token['_SUCCESS_TRANSACTIONS'] += 1
+                                    printt_debug("3840 _SUCCESS_TRANSACTIONS:", token['_SUCCESS_TRANSACTIONS'])
+                                    
+                                    # Check if MAX_SUCCESS_TRANSACTIONS_IN_A_ROW is reached or not
+                                    if token['_SUCCESS_TRANSACTIONS'] >= token['MAX_SUCCESS_TRANSACTIONS_IN_A_ROW']:
+                                        token['_REACHED_MAX_SUCCESS_TX'] = True
+                                        printt_warn("You have reached MAX_SUCCESS_TRANSACTIONS_IN_A_ROW for", token['SYMBOL'], "token --> disabling trade", write_to_log=True)
+    
+                                    printt_info("")
+                                    printt_info("--------------------------------------------")
+                                    printt_info("   Buy is now made --> Entering SELL MODE")
+                                    printt_info("--------------------------------------------")
+                                    printt_info("")
+    
+                                    # Set _BUY_IS_MADE to true to avoid entering Mempool mode again
+                                    token['_BUY_IS_MADE'] = True
+                                    
+                                    # Build sell conditions for the token
+                                    build_sell_conditions(token, 'after_buy', 'show_message')
+                                    
+                                    printt_debug(tokens)
+    
+                            else:
+                                continue
 
 
                     #
@@ -5547,6 +5532,8 @@ def run():
                     #    need to use later
                     #
                     
+                    token['_PREVIOUS_QUOTE'] = token['_QUOTE']
+
                     if token['LIQUIDITYINNATIVETOKEN'] == 'true':
                         token['_QUOTE'] = check_precise_price(token['_IN_TOKEN'], token['_OUT_TOKEN'], token['_WETH_DECIMALS'], token['_CONTRACT_DECIMALS'], token['_BASE_DECIMALS'])
                     else:
@@ -5626,7 +5613,7 @@ def run():
                         #   If the option is selected
                         #
 
-                        if token["MINIMUM_LIQUIDITY_IN_DOLLARS"] != 0:
+                        if token["MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL"] != 0:
                             liquidity_result = check_liquidity_amount(token, token['_BASE_DECIMALS'], token['_WETH_DECIMALS'])
                             if liquidity_result == 0:
                                 continue
