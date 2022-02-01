@@ -1151,7 +1151,7 @@ if settings['EXCHANGE'] == 'pancakeswap':
     elif settings['EXCHANGEVERSION'] == "2":
         routerAddress = Web3.toChecksumAddress("0x10ED43C718714eb63d5aA57B78B54704E256024E")
         factoryAddress = Web3.toChecksumAddress("0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73")
-    
+
     routerContract = client.eth.contract(address=routerAddress, abi=routerAbi)
     factoryContract = client.eth.contract(address=factoryAddress, abi=factoryAbi)
     weth = Web3.toChecksumAddress("0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c")
@@ -1185,8 +1185,6 @@ if settings['EXCHANGE'].lower() == 'pancakeswaptestnet':
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
-
-    client.middleware_onion.inject(geth_poa_middleware, layer=0)
 
     print(timestamp(), "Binance Smart Chain testnet Connected =", client.isConnected())
     print(timestamp(), "Loading Smart Contracts...")
@@ -1750,8 +1748,6 @@ elif settings["EXCHANGE"] == 'quickswap':
     settings['_STABLE_BASES'] = {'USDT': {'address': '0xc2132d05d31c914a87c6611c10748aeb04b58e8f', 'multiplier': 0},
                                  'USDC': {'address': '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', 'multiplier': 0}}
 
-
-
 elif settings["EXCHANGE"] == 'polygon-apeswap':
     if settings['USECUSTOMNODE'] == 'true':
         my_provider = settings['CUSTOMNODE']
@@ -1951,6 +1947,9 @@ elif settings["EXCHANGE"] == 'viperswap':
     settings['_EXCHANGE_BASE_SYMBOL'] = 'WONE'
     settings['_STABLE_BASES'] = {'BUSD': {'address': '0xe176ebe47d621b984a73036b9da5d834411ef734', 'multiplier'  : 0},
                                  'USDT': {'address': '0x3c2b8be99c50593081eaa2a724f0b8285f5aba8f', 'multiplier' : 0}}
+
+# Necessary to scan mempool
+client.middleware_onion.inject(geth_poa_middleware, layer=0)
 
 def get_password():
     # Function: get_password
