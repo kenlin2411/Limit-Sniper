@@ -13,6 +13,8 @@
 "WALLETADDRESS5": "null",
 "PRIVATEKEY5": "null",
 
+"MEMPOOL_METHOD": "normal",
+
 "USECUSTOMNODE": "false",
 	"CUSTOMNODE": "false", // put your own node here if you want and set USECUSTOMNODE = true
 
