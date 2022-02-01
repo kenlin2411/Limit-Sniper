@@ -5136,14 +5136,17 @@ def benchmark():
 
 # Check RPC Node latency
     k = 0
-    if my_provider[0].lower() == 'h' or my_provider[0].lower() == 'w':
-        provider = my_provider.replace('wss://', 'https://').replace('ws://', 'https://')
-        for i in range(5):
-            response = requests.post(provider)
-            k = k + response.elapsed.total_seconds()
-            sleep(0.05)
-        printt('RPC Node average latency :', str(int((k/5)*1000)), 'ms', write_to_log=True)
-
+    try:
+        if my_provider[0].lower() == 'h' or my_provider[0].lower() == 'w':
+            provider = my_provider.replace('wss://', 'https://').replace('ws://', 'http://')
+            for i in range(5):
+                response = requests.post(provider)
+                k = k + response.elapsed.total_seconds()
+                sleep(0.05)
+            printt('RPC Node average latency :', str(int((k/5)*1000)), 'ms', write_to_log=True)
+    except Exception:
+        pass
+    
 # Check 'check_price' function speed
     token = load_tokens_file(command_line_args.tokens, False)
     token[0]['_WETH_DECIMALS'] = int(decimals(weth))
