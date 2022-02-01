@@ -2098,21 +2098,39 @@ def build_extended_base_configuration(token_dict):
     # Giving values for the stables pair
     for stable_token in settings['_STABLE_BASES']:
         new_token = token_dict.copy()
-        new_token.update({
-                        'BUYAMOUNTINBASE': token_dict['BUYAMOUNTINBASE'] * settings['_STABLE_BASES'][stable_token]['multiplier'],
-                        "BUYPRICEINBASE": token_dict['BUYPRICEINBASE'] * settings['_STABLE_BASES'][stable_token]['multiplier'],
-                        "SELLPRICEINBASE": float(token_dict['_CALCULATED_SELLPRICEINBASE']) * float(settings['_STABLE_BASES'][stable_token]['multiplier']),
-                        "STOPLOSSPRICEINBASE": float(token_dict['_CALCULATED_STOPLOSSPRICEINBASE']) * float(settings['_STABLE_BASES'][stable_token]['multiplier']),
-                        "MINIMUM_LIQUIDITY_IN_DOLLARS": token_dict['MINIMUM_LIQUIDITY_IN_DOLLARS'],
-                        "USECUSTOMBASEPAIR": "true",
-                        "LIQUIDITYINNATIVETOKEN": "false",
-                        "BASESYMBOL": stable_token,
-                        "_BASE_PRICE": settings['_STABLE_BASES'][stable_token]['multiplier'],
-                        "BASEADDRESS": settings['_STABLE_BASES'][stable_token]['address'],
-                        "_PAIR_SYMBOL": token_dict['SYMBOL'] + '/' + stable_token,
-                        "_BUILT_BY_BOT": True
-                        })
-        
+        # special condition if SELLPRICE = 99999 (if sell price is in %, at bot launch)
+        # you keep 99999 instead of re-calculating it with base price, to make the price more beautiful on the screen
+        if token_dict['_CALCULATED_SELLPRICEINBASE'] == 99999:
+            new_token.update({
+                'BUYAMOUNTINBASE': token_dict['BUYAMOUNTINBASE'] * settings['_STABLE_BASES'][stable_token]['multiplier'],
+                "BUYPRICEINBASE": token_dict['BUYPRICEINBASE'] * settings['_STABLE_BASES'][stable_token]['multiplier'],
+                "SELLPRICEINBASE": token_dict['_CALCULATED_SELLPRICEINBASE'],
+                "STOPLOSSPRICEINBASE": token_dict['_CALCULATED_STOPLOSSPRICEINBASE'],
+                "MINIMUM_LIQUIDITY_IN_DOLLARS": token_dict['MINIMUM_LIQUIDITY_IN_DOLLARS'],
+                "USECUSTOMBASEPAIR": "true",
+                "LIQUIDITYINNATIVETOKEN": "false",
+                "BASESYMBOL": stable_token,
+                "_BASE_PRICE": settings['_STABLE_BASES'][stable_token]['multiplier'],
+                "BASEADDRESS": settings['_STABLE_BASES'][stable_token]['address'],
+                "_PAIR_SYMBOL": token_dict['SYMBOL'] + '/' + stable_token,
+                "_BUILT_BY_BOT": True
+            })
+        else:
+            new_token.update({
+                'BUYAMOUNTINBASE': token_dict['BUYAMOUNTINBASE'] * settings['_STABLE_BASES'][stable_token]['multiplier'],
+                "BUYPRICEINBASE": token_dict['BUYPRICEINBASE'] * settings['_STABLE_BASES'][stable_token]['multiplier'],
+                "SELLPRICEINBASE": float(token_dict['_CALCULATED_SELLPRICEINBASE']) * float(settings['_STABLE_BASES'][stable_token]['multiplier']),
+                "STOPLOSSPRICEINBASE": float(token_dict['_CALCULATED_STOPLOSSPRICEINBASE']) * float(settings['_STABLE_BASES'][stable_token]['multiplier']),
+                "MINIMUM_LIQUIDITY_IN_DOLLARS": token_dict['MINIMUM_LIQUIDITY_IN_DOLLARS'],
+                "USECUSTOMBASEPAIR": "true",
+                "LIQUIDITYINNATIVETOKEN": "false",
+                "BASESYMBOL": stable_token,
+                "_BASE_PRICE": settings['_STABLE_BASES'][stable_token]['multiplier'],
+                "BASEADDRESS": settings['_STABLE_BASES'][stable_token]['address'],
+                "_PAIR_SYMBOL": token_dict['SYMBOL'] + '/' + stable_token,
+                "_BUILT_BY_BOT": True
+            })
+            
         # If these keys have special character on them, they represent percentages and we shouldn't copy them.
         if not re.search('^(\d+\.){0,1}\d+(x|X|%)$', str(token_dict['SELLPRICEINBASE'])):
             new_token['SELLPRICEINBASE'] = float(token_dict['SELLPRICEINBASE']) * float(settings['_STABLE_BASES'][stable_token]['multiplier'])
@@ -2605,6 +2623,9 @@ def scan_mempool(token, methodid):
                 txHashDetails = client.eth.get_transaction(txHash)
                 printt_debug(txHashDetails)
                 txFunction = txHashDetails.input[:10]
+                input_decoded = routerContract.decode_function_input(txHashDetails.input)
+                printt_err(input_decoded)
+
                 if txFunction.lower() in methodid:
                     liquidity_detected = True
                     token['_GAS_IS_CALCULATED'] = True
@@ -2618,6 +2639,92 @@ def scan_mempool(token, methodid):
         except Exception as e:
             printt_err("scan_mempool Error. It can happen with Public node : private node is recommended. Still, let's continue.")
             continue
+
+
+def scan_mempool_classic(token):
+    printt_debug("ENTER scan_mempool_classic")
+    
+    printt("")
+    printt("--------------------------------------------------------")
+    printt("SCANNING MEMPOOL")
+    printt("")
+    printt("Bot will scan mempool to detect AddLiquidity functions")
+    printt("")
+    printt("--------------------------------------------------------")
+
+    openTrade = False
+    to_address = routerAddress
+    contract = client.eth.contract(address=routerAddress, abi=routerAbi)
+
+    while openTrade == False:
+
+        pending_block = client.eth.getBlock('pending', full_transactions=True)
+        printt("Scanning Mempool & Waiting for New Liquidity Add Event..... Current Block: ", pending_block['number'])
+        pending_transactions = pending_block['transactions']
+        for pending in pending_transactions:
+            
+            # if the Tx is sent to routerAddress, we investigate further
+            if pending['to'] == to_address:
+                input_bytes = pending['input']
+                
+                # We decode the input, and check the function inside
+                try:
+                    decoded = contract.decode_function_input(input_bytes)
+                except ValueError as ve:
+                    logging.exception(ve)
+                    printt_err("An error occured. Please check your logs and report it to the team.")
+                    break
+                
+                # If it's an addLiquidity function, it's interesting... let's investigate further
+                if str(decoded[0]) == '<Function addLiquidityETH(address,uint256,uint256,uint256,address,uint256)>' \
+                        or str(decoded[0]) == '<Function addLiquidity(address,address,uint256,uint256,uint256,uint256,address,uint256)>' \
+                        or str(decoded[0]) == '<Function addLiquidityAVAX(address,uint256,uint256,uint256,address,uint256)>' \
+                        or str(decoded[0]) == '<Function addLiquidityKCS(address,uint256,uint256,uint256,address,uint256)>':
+                    
+                    filter_contract = decoded[1]
+
+                    # If it's the token you're trying to snipe, you're a winner!
+                    try:
+                        if filter_contract['token'] == Web3.toChecksumAddress(token['ADDRESS']):
+                            printt_debug("token_check true 1")
+                            token_check = True
+                        else:
+                            printt_debug("token_check false 1")
+                            token_check = False
+                
+                    # Some liquidity functions ose tokenA and tokenB instead
+                    except Exception as e:
+                        if filter_contract['tokenA'] == Web3.toChecksumAddress(token['ADDRESS']) or filter_contract['tokenB'] == Web3.toChecksumAddress(token['ADDRESS']):
+                            printt_debug("token_check true 2")
+                            token_check = True
+    
+                        else:
+                            printt_debug("token_check false 2")
+                            token_check = False
+                
+                    # Let's snipe!
+                    if token_check:
+                        printt_debug("break 4")
+                        printt_ok("")
+                        printt_ok("--------------------------------------------------------")
+                        printt_ok("WE FOUND SOMETHING IN MEMPOOL")
+                        printt_ok("")
+                        printt("- Block number:", pending_block['number'])
+                        printt("- Function:", str(decoded[0]))
+                        printt("- TxHash:", pending['hash'].hex())
+                        printt_ok("")
+                        printt_ok("--------------------------------------------------------")
+
+                        openTrade = True
+                
+                    else:
+                        printt_debug("pass 1: not the token we're trying to snipe")
+                        pass
+                else:
+                    printt_debug("pass 2: not an addLiquidity function")
+                    pass
+            else:
+                continue
 
 
 def scan_mempool_private_node(token, methodid):
@@ -4258,6 +4365,10 @@ def buy(token_dict, inToken, outToken, pwd):
     
     # Map variables until all code is cleaned up.
     amount = token_dict['BUYAMOUNTINBASE']
+    # force it to zero if user has an empty field, if he uses KIND_OF_SWAP = tokens
+    if amount == '':
+        amount = 0
+
     slippage = token_dict['SLIPPAGE']
     gaslimit = token_dict['GASLIMIT']
     boost = token_dict['BOOSTPERCENT']
@@ -5025,7 +5136,7 @@ def benchmark():
 # Check RPC Node latency
     k = 0
     if my_provider[0].lower() == 'h' or my_provider[0].lower() == 'w':
-        provider = my_provider.replace('wss://', 'https://')
+        provider = my_provider.replace('wss://', 'https://').replace('ws://', 'https://')
         for i in range(5):
             response = requests.post(provider)
             k = k + response.elapsed.total_seconds()
@@ -5105,13 +5216,21 @@ def run():
         # UPDATE 07/01 : removed as it seems buggy
         # preapprove_base(tokens)
         
-        # For each token check to see if the user wants to run a rugdoc check against them.
-        #   then run the rugdoctor check and prompt the user if they want to continue trading
-        #   the token
-        #
-        # TODO PRUNE: Prune tokens if the user doesn't want to trade them. Exit only if we don't have any more tokens left
-        # TODO ARG: Implement an argument that auto accepts or prunes tokens that are rejected/accepted by the rugdoc check
         for token in tokens:
+    
+            # tokens.json values logic control
+            if token['MULTIPLEBUYS'].lower() == 'true' and token['KIND_OF_SWAP'].lower() == 'tokens':
+                printt_err("MULTIPLEBUYS is only compatible with KIND_OF_SWAP = base... Sorry.")
+                sys.exit()
+    
+            if token['LIQUIDITYINNATIVETOKEN'].lower() == 'false' and token['USECUSTOMBASEPAIR'].lower() == 'false':
+                printt_err("You have selected LIQUIDITYINNATIVETOKEN = false , so you must choose USECUSTOMBASEPAIR = true")
+                printt_err("Please read Wiki carefully, it's very important you can lose money!!")
+                sys.exit()
+    
+            if token['KIND_OF_SWAP'].lower() == 'tokens' and token['MAX_BASE_AMOUNT_PER_EXACT_TOKENS_TRANSACTION'] == 0:
+                printt_err("You have selected KIND_OF_SWAP = tokens, so you must enter a value in MAX_BASE_AMOUNT_PER_EXACT_TOKENS_TRANSACTION")
+                sys.exit()
     
             # Set the checksum addressed for the addresses we're working with
             # _IN_TOKEN is the token you want to BUY (example : CAKE)
@@ -5262,12 +5381,20 @@ def run():
                             # Function: addLiquidity() *** (on UniCrypt --> needs to be implemented)
                             # MethodID: 0xe8078d94
 
-                        if settings['KIND_OF_NODE'] == 'public_node':
-                            scan_mempool_public_node(token, methods_id)
-                        elif settings['KIND_OF_NODE'] == 'private_node':
-                            scan_mempool_private_node(token, methods_id)
-                        else:
-                            scan_mempool(token, methods_id)
+
+                        # Working on that
+                        #
+                        # if settings['KIND_OF_NODE'] == 'public_node':
+                        #     scan_mempool_public_node(token, methods_id)
+                        # elif settings['KIND_OF_NODE'] == 'private_node':
+                        #     scan_mempool_private_node(token, methods_id)
+                        # elif settings['KIND_OF_NODE'] == 'classic':
+                        #     scan_mempool_classic(token)
+                        # else:
+                        #     scan_mempool(token, methods_id)
+                        
+                        scan_mempool_classic(token)
+
                         #
                         # OPEN TRADE CHECK
                         #   If the option is selected, bot wait for trading_is_on == True to create a BUY order
