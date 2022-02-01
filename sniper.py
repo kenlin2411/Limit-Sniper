@@ -5551,8 +5551,11 @@ def run():
                     elif token['_QUOTE'] < token['_ALL_TIME_LOW']:
                         token['_ALL_TIME_LOW'] = token['_QUOTE']
 
+                    
                     # Print the buy message
-                    printt_buy_price(token, token['_QUOTE'])
+                    # added the condition "if token['_PREVIOUS_QUOTE'] != 0" to avoid having a green line in first position and make trading_is_on work
+                    if token['_PREVIOUS_QUOTE'] != 0 and token['_QUOTE'] != 0:  # and token['_REACHED_MAX_TOKENS'] == False:
+                        printt_buy_price(token, token['_QUOTE'])
 
 
                     #
