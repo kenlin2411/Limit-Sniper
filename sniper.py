@@ -571,7 +571,7 @@ def load_tokens_file(tokens_path, load_message=True):
         'BUYAMOUNTINTOKEN': 0,
         'MAXTOKENS': 0,
         'MOONBAG': 0,
-        'MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL': 10000,
+        'MINIMUM_LIQUIDITY_IN_DOLLARS': 10000,
         'MAX_BASE_AMOUNT_PER_EXACT_TOKENS_TRANSACTION': 0.5,
         'SELLAMOUNTINTOKENS': 'all',
         'GAS': 8,
@@ -813,7 +813,7 @@ def reload_tokens_file(tokens_path, load_message=True):
         'BUYAMOUNTINTOKEN': 0,
         'MAXTOKENS': 0,
         'MOONBAG': 0,
-        'MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL': 10000,
+        'MINIMUM_LIQUIDITY_IN_DOLLARS': 10000,
         'MAX_BASE_AMOUNT_PER_EXACT_TOKENS_TRANSACTION': 0.5,
         'SELLAMOUNTINTOKENS': 'all',
         'GAS': 8,
@@ -1204,7 +1204,7 @@ if settings['EXCHANGE'].lower() == 'pancakeswaptestnet':
     modified = False
     
     settings['_EXCHANGE_BASE_SYMBOL'] = 'BNBt'
-    settings['_STABLE_BASES'] = {'BUSD':{ 'address': '0x8301f2213c0eed49a7e28ae4c3e91722919b8b47', 'multiplier' : 0},
+    settings['_STABLE_BASES'] = {'BUSD':{ 'address': '0x78867bbeef44f2326bf8ddd1941a4439382ef2a7', 'multiplier' : 0},
                                  'DAI ':{ 'address': '0x8a9424745056eb399fd19a0ec26a14316684e274', 'multiplier' : 0}}
 
 
@@ -2102,7 +2102,7 @@ def build_extended_base_configuration(token_dict):
                 'BUYAMOUNTINBASE': token_dict['BUYAMOUNTINBASE'] * settings['_STABLE_BASES'][stable_token]['multiplier'],
                 "SELLPRICEINBASE": token_dict['_CALCULATED_SELLPRICEINBASE'],
                 "STOPLOSSPRICEINBASE": token_dict['_CALCULATED_STOPLOSSPRICEINBASE'],
-                "MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL": token_dict['MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL'],
+                "MINIMUM_LIQUIDITY_IN_DOLLARS": token_dict['MINIMUM_LIQUIDITY_IN_DOLLARS'],
                 "USECUSTOMBASEPAIR": "true",
                 "LIQUIDITYINNATIVETOKEN": "false",
                 "BASESYMBOL": stable_token,
@@ -2116,7 +2116,7 @@ def build_extended_base_configuration(token_dict):
                 'BUYAMOUNTINBASE': token_dict['BUYAMOUNTINBASE'] * settings['_STABLE_BASES'][stable_token]['multiplier'],
                 "SELLPRICEINBASE": float(token_dict['_CALCULATED_SELLPRICEINBASE']) * float(settings['_STABLE_BASES'][stable_token]['multiplier']),
                 "STOPLOSSPRICEINBASE": float(token_dict['_CALCULATED_STOPLOSSPRICEINBASE']) * float(settings['_STABLE_BASES'][stable_token]['multiplier']),
-                "MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL": token_dict['MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL'],
+                "MINIMUM_LIQUIDITY_IN_DOLLARS": token_dict['MINIMUM_LIQUIDITY_IN_DOLLARS'],
                 "USECUSTOMBASEPAIR": "true",
                 "LIQUIDITYINNATIVETOKEN": "false",
                 "BASESYMBOL": stable_token,
@@ -2647,11 +2647,11 @@ def scan_mempool_classic(token):
     printt("")
     printt("--------------------------------------------------------")
 
-    openTrade = False
+    buyToken = False
     to_address = routerAddress
     contract = client.eth.contract(address=routerAddress, abi=routerAbi)
 
-    while openTrade == False:
+    while buyToken == False:
 
         pending_block = client.eth.getBlock('pending', full_transactions=True)
         printt("Scanning Mempool & Waiting for New Liquidity Add Event..... Current Block: ", pending_block['number'])
@@ -2661,10 +2661,10 @@ def scan_mempool_classic(token):
             # if the Tx is sent to routerAddress, we investigate further
             if pending['to'] == to_address:
                 input_bytes = pending['input']
-                
                 # We decode the input, and check the function inside
                 try:
                     decoded = contract.decode_function_input(input_bytes)
+
                 except ValueError as ve:
                     logging.exception(ve)
                     printt_err("An error occured. Please check your logs and report it to the team.")
@@ -2687,7 +2687,7 @@ def scan_mempool_classic(token):
                             printt_debug("token_check false 1")
                             token_check = False
                 
-                    # Some liquidity functions ose tokenA and tokenB instead
+                    # Some liquidity functions use tokenA and tokenB instead
                     except Exception as e:
                         if filter_contract['tokenA'] == Web3.toChecksumAddress(token['ADDRESS']) or filter_contract['tokenB'] == Web3.toChecksumAddress(token['ADDRESS']):
                             printt_debug("token_check true 2")
@@ -2699,6 +2699,9 @@ def scan_mempool_classic(token):
                 
                     # Let's snipe!
                     if token_check:
+
+                        printt_debug("pending:", pending)
+                        printt_debug("decoded:", decoded)
                         printt_debug("pending['gasPrice']:", pending['gasPrice'])
                         token['_GAS_IS_CALCULATED'] = True
                         token['_GAS_TO_USE'] = int(pending['gasPrice']) / 1000000000
@@ -2714,14 +2717,52 @@ def scan_mempool_classic(token):
                         printt_ok("")
                         printt_ok("--------------------------------------------------------")
 
-                        
-                        openTrade = True
-                
+                        # LIQUIDITY CHECK
+                        # Let's calculate Liquidity amount added. 2 cases :
+                        #   1/ If liquidity is in native token (BNB...)      the amount is situated in pending['value']
+                        #   2/ If liquidity is NOT in native token (BUSD...) the amount is situated in decoded['amountADesired']
+                        if token["MINIMUM_LIQUIDITY_IN_DOLLARS"] != 0:
+                            if token['LIQUIDITYINNATIVETOKEN'] == 'true':
+                                printt_debug("pending['value']", pending['value'])
+                                liquidity_amount = pending['value'] / token['_LIQUIDITY_DECIMALS']
+                            elif token['LIQUIDITYINNATIVETOKEN'] == 'false' and token['USECUSTOMBASEPAIR'] == 'true':
+                                printt_debug("token['ADDRESS'].lower()", token['BASEADDRESS'].lower())
+                                printt_debug("decoded['tokenA']", filter_contract['tokenA'].lower())
+                                printt_debug("decoded['tokenB']", filter_contract['tokenB'].lower())
+                                printt_debug("decoded['amountBDesired']", filter_contract['amountBDesired'])
+                                printt_debug("decoded['amountBDesired']", filter_contract['amountBDesired'])
+                                if token['BASEADDRESS'].lower() == filter_contract['tokenA'].lower():
+                                    printt_debug("the token we're trying to snipe is tokenA --> let's find amount in amountADesired")
+                                    liquidity_amount = filter_contract['amountADesired'] / token['_LIQUIDITY_DECIMALS']
+                                else:
+                                    printt_debug("the token we're trying to snipe is tokenB --> let's find amount in amountBDesired")
+                                    liquidity_amount = filter_contract['amountBDesired'] / token['_LIQUIDITY_DECIMALS']
+
+                            liquidity_result = check_liquidity_amount_mempool(token, liquidity_amount)
+                            if liquidity_result != 0:
+                                buyToken = True
+                            else:
+                                response = ""
+                                while response != "y" and response != "n":
+                                    printt("What do you want to do?")
+                                    response = input("                           Would you like to restart the bot and scan mempool again? (y/n): ")
+
+                                if response == "y":
+                                    scan_mempool_classic(token)
+                                else:
+                                    sys.exit()
+
+                        else:
+                            # If we don't want to check liquidity... That's suicide but let's go!
+                            buyToken = True
+    
+                            
+                            
                     else:
-                        printt_debug("pass 1: not the token we're trying to snipe")
+                        # pass : not the token we're trying to snipe
                         pass
                 else:
-                    printt_debug("pass 2: not an addLiquidity function")
+                    # pass 2: not an addLiquidity function
                     pass
             else:
                 continue
@@ -2882,6 +2923,7 @@ def wait_for_open_trade(token, inToken, outToken):
 
     openTrade = False
     
+    # We store the initial token price by running check_price() once
     token['_PREVIOUS_QUOTE'] = check_price(inToken, outToken, token['USECUSTOMBASEPAIR'], token['LIQUIDITYINNATIVETOKEN'], int(token['_CONTRACT_DECIMALS']), int(token['_BASE_DECIMALS']))
 
     # If we look for Pinksale sales, we look into the Presale Address's transactions for 0x4bb278f3 methodID
@@ -2894,10 +2936,12 @@ def wait_for_open_trade(token, inToken, outToken):
         # Function: finalize() - check examples below
         list_of_methodId = ["0x4bb278f3"]
     else:
+        # the methodIDs below are openTrading() - like methods. Check below for examples
         list_of_methodId = ["0x8a8c523c", "0x0d295980", "0xbccce037", "0x4efac329", "0x7b9e987a", "0x6533e038", "0x8f70ccf7", "0xa6334231", "0x48dfea0a", "0xc818c280", "0xade87098", "0x0099d386", "0xfb201b1d", "0x293230b8", "0x68c5111a", "0xc49b9a80", "0xc00f04d1", "0xcd2a11be", "0xa0ac5e19", "0x1d97b7cd", "0xf275f64b", "0x5e83ae76", "0x82aa7c68"]
 
     while openTrade == False:
     
+        # If "true" value is selected, it scans the price in // to detect for price movement
         if token['WAIT_FOR_OPEN_TRADE'] == 'true' or token['WAIT_FOR_OPEN_TRADE'] == 'true_no_message' or token['WAIT_FOR_OPEN_TRADE'] == 'true_after_buy_tx_failed' or token['WAIT_FOR_OPEN_TRADE'] == 'true_after_buy_tx_failed_no_message':
             pprice = check_price(inToken, outToken, token['USECUSTOMBASEPAIR'], token['LIQUIDITYINNATIVETOKEN'], int(token['_CONTRACT_DECIMALS']), int(token['_BASE_DECIMALS']))
     
@@ -3140,8 +3184,8 @@ def check_liquidity_amount(token, DECIMALS_OUT, DECIMALS_weth):
         printt("Current", token['_PAIR_SYMBOL'], "Liquidity =", "{:.2f}".format(liquidity_amount_in_dollars), "$")
         printt("")
         
-        if float(token['MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL']) <= float(liquidity_amount_in_dollars):
-            printt_ok("MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL parameter =", int(token['MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL']), " --> Enough liquidity detected : Buy Signal Found!")
+        if float(token['MINIMUM_LIQUIDITY_IN_DOLLARS']) <= float(liquidity_amount_in_dollars):
+            printt_ok("MINIMUM_LIQUIDITY_IN_DOLLARS parameter =", int(token['MINIMUM_LIQUIDITY_IN_DOLLARS']), " --> Enough liquidity detected : Buy Signal Found!")
             return 1
         
         # This position isn't looking good. Inform the user, disable the token and break out of this loop
@@ -3149,7 +3193,7 @@ def check_liquidity_amount(token, DECIMALS_OUT, DECIMALS_weth):
             printt_warn("------------------------------------------------", write_to_log=True)
             printt_warn("NOT ENOUGH LIQUIDITY", write_to_log=True)
             printt_warn("", write_to_log=True)
-            printt_warn("- You have set MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL  =", token['MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL'], "$", write_to_log=True)
+            printt_warn("- You have set MINIMUM_LIQUIDITY_IN_DOLLARS  =", token['MINIMUM_LIQUIDITY_IN_DOLLARS'], "$", write_to_log=True)
             printt_warn("- Liquidity detected for", token['SYMBOL'], "=", "{:.2f}".format(liquidity_amount_in_dollars), "$", write_to_log=True)
             printt_warn("--> Bot will not buy and disable token", write_to_log=True)
             printt_warn("------------------------------------------------", write_to_log=True)
@@ -3180,8 +3224,8 @@ def check_liquidity_amount(token, DECIMALS_OUT, DECIMALS_weth):
 
         printt("Current", token['SYMBOL'], "Liquidity =", "{:.6f}".format(liquidity_amount_in_dollars), "$")
         
-        if float(token['MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL']) <= float(liquidity_amount_in_dollars):
-            printt_ok("MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL parameter =", int(token['MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL']), " --> Enough liquidity detected : Buy Signal Found!")
+        if float(token['MINIMUM_LIQUIDITY_IN_DOLLARS']) <= float(liquidity_amount_in_dollars):
+            printt_ok("MINIMUM_LIQUIDITY_IN_DOLLARS parameter =", int(token['MINIMUM_LIQUIDITY_IN_DOLLARS']), " --> Enough liquidity detected : Buy Signal Found!")
             return 1
         
         # This position isn't looking good. Inform the user, disable the token and break out of this loop
@@ -3189,12 +3233,100 @@ def check_liquidity_amount(token, DECIMALS_OUT, DECIMALS_weth):
             printt_warn("------------------------------------------------", write_to_log=True)
             printt_warn("NOT ENOUGH LIQUIDITY", write_to_log=True)
             printt_warn("", write_to_log=True)
-            printt_warn("- You have set MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL  =", token['MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL'], "$", write_to_log=True)
+            printt_warn("- You have set MINIMUM_LIQUIDITY_IN_DOLLARS  =", token['MINIMUM_LIQUIDITY_IN_DOLLARS'], "$", write_to_log=True)
             printt_warn("- Liquidity detected for", token['SYMBOL'], "=", "{:.2f}".format(liquidity_amount_in_dollars), "$", write_to_log=True)
             printt_warn("--> Bot will not buy and disable token", write_to_log=True)
             printt_warn("------------------------------------------------", write_to_log=True)
             token['ENABLED'] = 'false'
             token['_QUOTE'] = 0
+            return 0
+
+
+def check_liquidity_amount_mempool(token, amount_detected):
+    # Function: check_liquidity_amount_mempool
+    # ----------------------------
+    # Tells if the liquidity of tokens purchased is enough for trading or not, when mempool scanning
+    #
+    # returns:
+    #       - 0 if NOT OK for trading
+    #       - 1 if OK for trading
+    #
+    #    There are 4 cases :
+    #    1/ LIQUIDITYINNATIVETOKEN = true & USECUSTOMBASEPAIR = false --> we need to check liquidity in ETH / BNB...
+    #    2/ LIQUIDITYINNATIVETOKEN = true & USECUSTOMBASEPAIR = true --> we need to check liquidity in ETH / BNB too
+    #    3/ LIQUIDITYINNATIVETOKEN = false & USECUSTOMBASEPAIR = true --> we need to check liquidity in the CUSTOM Base Pair
+    #    4/ LIQUIDITYINNATIVETOKEN = false & USECUSTOMBASEPAIR = false --> ERROR. This case in handled line 1830 in the buy() function
+    #
+    
+    printt_debug("ENTER: check_liquidity_amount_mempool()")
+    
+    # Cases 1 and 2 above : we always use weth as LP pair to check liquidity
+    if token["LIQUIDITYINNATIVETOKEN"] == 'true':
+        printt_debug("check_liquidity_amount_mempool case 1")
+        
+        liquidity_amount_in_dollars = float(amount_detected) * float(token['_BASE_PRICE'])
+        printt("We detected ", token['_PAIR_SYMBOL'], "Liquidity =", "{:.2f}".format(liquidity_amount_in_dollars), "$")
+        printt("")
+        
+        if float(token['MINIMUM_LIQUIDITY_IN_DOLLARS']) <= float(liquidity_amount_in_dollars):
+            printt_ok("")
+            printt_ok("------------------------------------------------", write_to_log=True)
+            printt_ok("ENOUGH LIQUIDITY", write_to_log=True)
+            printt_ok("", write_to_log=True)
+            printt_ok("- You have set MINIMUM_LIQUIDITY_IN_DOLLARS  =", token['MINIMUM_LIQUIDITY_IN_DOLLARS'], "$", write_to_log=True)
+            printt_ok("- Liquidity added for", token['SYMBOL'], "=", "{:.2f}".format(liquidity_amount_in_dollars), "$", write_to_log=True)
+            printt_ok("--> Let's buy!", write_to_log=True)
+            printt_ok("------------------------------------------------", write_to_log=True)
+            return 1
+        
+        # Not enough liquidity : inform the user, disable the token and break out of this loop
+        else:
+            printt_warn("------------------------------------------------", write_to_log=True)
+            printt_warn("NOT ENOUGH LIQUIDITY", write_to_log=True)
+            printt_warn("", write_to_log=True)
+            printt_warn("- You have set MINIMUM_LIQUIDITY_IN_DOLLARS  =", token['MINIMUM_LIQUIDITY_IN_DOLLARS'], "$", write_to_log=True)
+            printt_warn("- Liquidity detected for", token['SYMBOL'], "=", "{:.2f}".format(liquidity_amount_in_dollars), "$", write_to_log=True)
+            printt_warn("------------------------------------------------", write_to_log=True)
+            return 0
+    
+    # Case 3 above
+    if token["LIQUIDITYINNATIVETOKEN"] == 'false' and token["USECUSTOMBASEPAIR"] == 'true':
+        # This case is a little bit more complicated. We need to:
+        # 1/ calculate Custom Base token price in ETH/BNB...
+        # 2/ convert this Custom Base token price in $
+        
+        outToken = Web3.toChecksumAddress(token['BASEADDRESS'])
+        printt_debug("check_liquidity_amount_mempool case 2")
+        
+        # 1/ calculate Custom Base token price in ETH/BNB...
+        # We could have used this also :
+        #   custom_base_price_in_base = check_precise_price(outToken, weth, token['_WETH_DECIMALS'], token['_CONTRACT_DECIMALS'], token['_BASE_DECIMALS'])
+        
+        custom_base_price_in_base = calculate_custom_base_price(outToken, token['_BASE_DECIMALS'], token['_WETH_DECIMALS'])
+        
+        # 2/ convert this Custom Base token price in $
+        custom_base_price_in_dollars = float(custom_base_price_in_base) * float(token['_BASE_PRICE'])
+        liquidity_amount_in_dollars = float(amount_detected) * float(custom_base_price_in_dollars)
+        
+        if float(token['MINIMUM_LIQUIDITY_IN_DOLLARS']) <= float(liquidity_amount_in_dollars):
+            printt_ok("")
+            printt_ok("------------------------------------------------", write_to_log=True)
+            printt_ok("ENOUGH LIQUIDITY", write_to_log=True)
+            printt_ok("", write_to_log=True)
+            printt_ok("- You have set MINIMUM_LIQUIDITY_IN_DOLLARS  =", token['MINIMUM_LIQUIDITY_IN_DOLLARS'], "$", write_to_log=True)
+            printt_ok("- Liquidity added for", token['SYMBOL'], "=", "{:.2f}".format(liquidity_amount_in_dollars), "$", write_to_log=True)
+            printt_ok("--> Let's buy!", write_to_log=True)
+            printt_ok("------------------------------------------------", write_to_log=True)
+            return 1
+        
+        # This position isn't looking good. Inform the user, disable the token and break out of this loop
+        else:
+            printt_warn("------------------------------------------------", write_to_log=True)
+            printt_warn("NOT ENOUGH LIQUIDITY", write_to_log=True)
+            printt_warn("", write_to_log=True)
+            printt_warn("- You have set MINIMUM_LIQUIDITY_IN_DOLLARS  =", token['MINIMUM_LIQUIDITY_IN_DOLLARS'], "$", write_to_log=True)
+            printt_warn("- Liquidity detected for", token['SYMBOL'], "=", "{:.2f}".format(liquidity_amount_in_dollars), "$", write_to_log=True)
+            printt_warn("------------------------------------------------", write_to_log=True)
             return 0
 
 
@@ -3956,14 +4088,13 @@ def make_the_buy(inToken, outToken, buynumber, pwd, amount, gas, gaslimit, gaspr
                 # Base Pair different from weth
                 
                 # We display a warning message if user tries to swap with too much money
-                if (str(inToken).lower() == '0xe9e7cea3dedca5984780bafc599bd69add087d56' or str(
-                        inToken).lower() == '0x55d398326f99059ff775485246999027b3197955' or str(
-                    inToken).lower() == '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d' or str(
-                    inToken).lower() == '0xdac17f958d2ee523a2206206994597c13d831ec7' or str(
-                    inToken).lower() == '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48') and (
-                        int(amount) / DECIMALS) > 2999:
-                    printt_info(
-                        "YOU ARE TRADING WITH VERY BIG AMOUNT, BE VERY CAREFUL YOU COULD LOSE MONEY!!! TEAM RECOMMEND NOT TO DO THAT")
+                if (str(inToken).lower() == '0xe9e7cea3dedca5984780bafc599bd69add087d56'
+                    or str(inToken).lower() == '0x55d398326f99059ff775485246999027b3197955'
+                    or str(inToken).lower() == '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d'
+                    or str(inToken).lower() == '0xdac17f958d2ee523a2206206994597c13d831ec7'
+                    or str(inToken).lower() == '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48') \
+                        and (int(amount) / DECIMALS) > 2999:
+                    printt_info("YOU ARE TRADING WITH VERY BIG AMOUNT, BE VERY CAREFUL YOU COULD LOSE MONEY!!! TEAM RECOMMEND NOT TO DO THAT")
                 
                 amount_out = routerContract.functions.getAmountsOut(amount, [inToken, outToken]).call()[-1]
                 
@@ -5414,7 +5545,7 @@ def run():
                             
                             # No liquidity check for BUY as liquidity is not added yet when it's detected on Mempool !
                             
-                            # if token["MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL"] != 0:
+                            # if token["MINIMUM_LIQUIDITY_IN_DOLLARS"] != 0:
                             #     liquidity_result = check_liquidity_amount(token, token['_BASE_DECIMALS'], token['_WETH_DECIMALS'])
                             #     if liquidity_result == 0:
                             #         continue
@@ -5618,7 +5749,7 @@ def run():
                         #   If the option is selected
                         #
 
-                        if token["MINIMUM_LIQUIDITY_IN_DOLLARS_FOR_SELL"] != 0:
+                        if token["MINIMUM_LIQUIDITY_IN_DOLLARS"] != 0:
                             liquidity_result = check_liquidity_amount(token, token['_BASE_DECIMALS'], token['_WETH_DECIMALS'])
                             if liquidity_result == 0:
                                 continue
