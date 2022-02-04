@@ -3179,7 +3179,7 @@ def check_liquidity_amount(token, DECIMALS_OUT, DECIMALS_weth):
     if token["LIQUIDITYINNATIVETOKEN"] == 'true':
         printt_debug("check_liquidity_amount case 1")
 
-        liquidity_amount = check_pool(inToken, weth, token['LIQUIDITY_DECIMALS'])
+        liquidity_amount = check_pool(inToken, weth, token['_LIQUIDITY_DECIMALS'])
         liquidity_amount_in_dollars = float(liquidity_amount) * float(token['_BASE_PRICE'])
         printt("Current", token['_PAIR_SYMBOL'], "Liquidity =", "{:.2f}".format(liquidity_amount_in_dollars), "$")
         printt("")
