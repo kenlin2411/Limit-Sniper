@@ -2708,12 +2708,12 @@ def scan_mempool_classic(token):
 
                         printt_ok("")
                         printt_ok("--------------------------------------------------------")
-                        printt_ok("WE FOUND SOMETHING IN MEMPOOL")
+                        printt_ok("WE FOUND SOMETHING IN MEMPOOL", write_to_log=True)
                         printt_ok("")
-                        printt("- Block number:", pending_block['number'])
-                        printt("- Function:", str(decoded[0]))
-                        printt("- TxHash:", pending['hash'].hex())
-                        printt("- GAS will be the same as liquidity adding event for your BUY Tx: GAS=", token['_GAS_TO_USE'])
+                        printt("- Block number:", pending_block['number'], write_to_log=True)
+                        printt("- Function:", str(decoded[0]), write_to_log=True)
+                        printt("- TxHash:", pending['hash'].hex(), write_to_log=True)
+                        printt("- GAS will be the same as liquidity adding event for your BUY Tx: GAS=", token['_GAS_TO_USE'], write_to_log=True)
                         printt_ok("")
                         printt_ok("--------------------------------------------------------")
 
@@ -3265,7 +3265,7 @@ def check_liquidity_amount_mempool(token, amount_detected):
         printt_debug("check_liquidity_amount_mempool case 1")
         
         liquidity_amount_in_dollars = float(amount_detected) * float(token['_BASE_PRICE'])
-        printt("We detected ", token['_PAIR_SYMBOL'], "Liquidity =", "{:.2f}".format(liquidity_amount_in_dollars), "$")
+        printt("We detected ", token['_PAIR_SYMBOL'], "Liquidity =", "{:.2f}".format(liquidity_amount_in_dollars), "$", write_to_log=True)
         printt("")
         
         if float(token['MINIMUM_LIQUIDITY_IN_DOLLARS']) <= float(liquidity_amount_in_dollars):
