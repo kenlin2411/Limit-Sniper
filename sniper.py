@@ -781,7 +781,8 @@ def reload_tokens_file(tokens_path, load_message=True):
     if load_message == True:
         printt("")
         printt("Reloading tokens from", tokens_path, '\033[31m', "- do NOT change token SYMBOL in real time", '\033[0m')
-        
+        printt("")
+
     with open(tokens_path, ) as js_file:
         t = jsmin(js_file.read())
     tokens = json.loads(t)
@@ -936,9 +937,7 @@ def reload_tokens_file(tokens_path, load_message=True):
             '_FAILED_TRANSACTIONS': _TOKENS_saved[token['SYMBOL']]['_FAILED_TRANSACTIONS'],
             '_SUCCESS_TRANSACTIONS': _TOKENS_saved[token['SYMBOL']]['_SUCCESS_TRANSACTIONS'],
             '_REACHED_MAX_SUCCESS_TX': _TOKENS_saved[token['SYMBOL']]['_REACHED_MAX_SUCCESS_TX'],
-            # set _TOKEN_BALANCE to 0 to avoid divide by 0 when calculating COST_PER_TOKEN
-            # TODO : to fix it
-            '_TOKEN_BALANCE': 0,
+            '_TOKEN_BALANCE': _TOKENS_saved[token['SYMBOL']]['_TOKEN_BALANCE'],
             '_PREVIOUS_TOKEN_BALANCE': _TOKENS_saved[token['SYMBOL']]['_PREVIOUS_TOKEN_BALANCE'],
             '_BASE_BALANCE': _TOKENS_saved[token['SYMBOL']]['_BASE_BALANCE'],
             '_BASE_PRICE': _TOKENS_saved[token['SYMBOL']]['_BASE_PRICE'],
@@ -959,6 +958,9 @@ def reload_tokens_file(tokens_path, load_message=True):
             '_LAST_MESSAGE': _TOKENS_saved[token['SYMBOL']]['_LAST_MESSAGE'],
             '_FIRST_SELL_QUOTE': _TOKENS_saved[token['SYMBOL']]['_FIRST_SELL_QUOTE'],
             '_BUILT_BY_BOT': _TOKENS_saved[token['SYMBOL']]['_BUILT_BY_BOT'],
+            '_BUY_IS_MADE': _TOKENS_saved[token['SYMBOL']]['_BUY_IS_MADE'],
+            '_IN_TOKEN': _TOKENS_saved[token['SYMBOL']]['_IN_TOKEN'],
+            '_OUT_TOKEN': _TOKENS_saved[token['SYMBOL']]['_OUT_TOKEN'],
             '_EXCHANGE_BASE_SYMBOL': _TOKENS_saved[token['SYMBOL']]['_EXCHANGE_BASE_SYMBOL'],
             '_PAIR_SYMBOL': _TOKENS_saved[token['SYMBOL']]['_PAIR_SYMBOL']
         })
