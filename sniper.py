@@ -780,8 +780,8 @@ def reload_tokens_file(tokens_path, load_message=True):
 
     if load_message == True:
         printt("")
-        printt("Reloading tokens from", tokens_path)
-
+        printt("Reloading tokens from", tokens_path, '\033[31m', "- do NOT change token SYMBOL in real time", '\033[0m')
+        
     with open(tokens_path, ) as js_file:
         t = jsmin(js_file.read())
     tokens = json.loads(t)
@@ -967,6 +967,7 @@ def reload_tokens_file(tokens_path, load_message=True):
     for token_dict in set_of_new_tokens:
         tokens.append(token_dict)
 
+    printt_debug("tokens after reload:", tokens)
     printt_debug("EXIT reload_tokens_file")
     return tokens
 
@@ -5474,7 +5475,7 @@ def run():
 
                     reload_bot_settings(bot_settings)
 
-                    raise RestartAppError("tokens.json has been changed, reloading")
+                    tokens = reload_tokens_file(command_line_args.tokens, True)
 
             else:
                 load_token_file_increment = load_token_file_increment + 1
