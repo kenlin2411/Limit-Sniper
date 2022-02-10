@@ -11,6 +11,7 @@ import os
 import web3
 from web3.exceptions import ABIFunctionNotFound, TransactionNotFound, BadFunctionCallOutput
 import logging
+import pause
 from datetime import datetime
 from functools import lru_cache
 from cachetools import cached, LRUCache, TTLCache
@@ -394,6 +395,8 @@ def load_settings_file(settings_path, load_message=True):
         'USECUSTOMNODE',
         'PASSWORD_ON_CHANGE',
         'SLOW_MODE',
+        'START_BUY_AFTER_TIMESTAMP',
+        'START_SELL_AFTER_TIMESTAMP',
         'ENABLE_APPRISE_NOTIFICATIONS'
     ]
     
@@ -5450,6 +5453,13 @@ def run():
         tokens_file_modified_time = os.path.getmtime(command_line_args.tokens)
         first_liquidity_check = True
         
+        # if START_BUY_AFTER_TIMESTAMP setting is a number, then wait until it's reached
+        if re.search(r'^[0-9]+$', str(settings['START_BUY_AFTER_TIMESTAMP'])):
+            printt_info("")
+            printt_info("Bot will wait until timestamp=", settings['START_BUY_AFTER_TIMESTAMP'], "before buying. Use https://www.unixtimestamp.com/ to define value")
+            printt_info("")
+            pause.until(int(settings['START_BUY_AFTER_TIMESTAMP']))
+            
         while True:
             
             # Check to see if the tokens file has changed every 10 iterations
@@ -5634,7 +5644,15 @@ def run():
                                     if token['XXX_SECONDS_COOLDOWN_AFTER_BUY_SUCCESS_TX'] != 0:
                                         printt_info("Bot will wait", token['XXX_SECONDS_COOLDOWN_AFTER_BUY_SUCCESS_TX'], "seconds after BUY, due to XXX_SECONDS_COOLDOWN_AFTER_BUY_SUCCESS_TX parameter", write_to_log=True)
                                         sleep(token['XXX_SECONDS_COOLDOWN_AFTER_BUY_SUCCESS_TX'])
+
+                                    # if START_SELL_AFTER_TIMESTAMP setting is a number, then wait until it's reached
+                                    if re.search(r'^[0-9]+$', str(settings['START_SELL_AFTER_TIMESTAMP'])):
+                                        printt_info("")
+                                        printt_info("Bot will wait until timestamp=", settings['START_SELL_AFTER_TIMESTAMP'], "before selling. Use https://www.unixtimestamp.com/ to define value")
+                                        printt_info("")
     
+                                        pause.until(int(settings['START_SELL_AFTER_TIMESTAMP']))
+                                        
                                     # increment _SUCCESS_TRANSACTIONS amount
                                     token['_SUCCESS_TRANSACTIONS'] += 1
                                     printt_debug("3840 _SUCCESS_TRANSACTIONS:", token['_SUCCESS_TRANSACTIONS'])
