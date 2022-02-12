@@ -13,7 +13,7 @@
 "WALLETADDRESS5": "null",
 "PRIVATEKEY5": "null",
 
-"MEMPOOL_METHOD": "normal", // work in progress : don't change it for now
+"MEMPOOL_METHOD": "normal", // write 'normal' for a normal token, and 'pinksale' to snipe token launched on Pinksale
 
 "USECUSTOMNODE": "false",
 	"CUSTOMNODE": "false", // put your own node here if you want and set USECUSTOMNODE = true

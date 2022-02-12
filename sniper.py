@@ -1176,7 +1176,7 @@ if settings['EXCHANGE'].lower() == 'pancakeswaptestnet':
         my_provider = settings['CUSTOMNODE']
         print(timestamp(), 'Using custom node.')
     else:
-        my_provider = "https://data-seed-prebsc-2-s3.binance.org:8545"
+        my_provider = "https://data-seed-prebsc-2-s2.binance.org:8545/"
     
     if not my_provider:
         print(timestamp(), 'Custom node empty. Exiting')
@@ -2891,15 +2891,15 @@ def scan_mempool_public_node(token, methodid):
         return
 
 
-def wait_for_open_trade(token, inToken, outToken):
+def wait_for_open_trade(token, inToken, outToken, parameter):
     printt_debug("ENTER wait_for_open_trade")
     
     printt(" ", write_to_log=False)
-    printt("-----------------------------------------------------------------------------------------------------------------------------", write_to_log=True)
-    printt("WAIT_FOR_OPEN_TRADE is enabled", write_to_log=True)
-    printt("", write_to_log=True)
 
-    if token['WAIT_FOR_OPEN_TRADE'] == 'true' or token['WAIT_FOR_OPEN_TRADE'] == 'true_after_buy_tx_failed':
+    if parameter != 'pinksale' and (token['WAIT_FOR_OPEN_TRADE'] == 'true' or token['WAIT_FOR_OPEN_TRADE'] == 'true_after_buy_tx_failed'):
+        printt("-----------------------------------------------------------------------------------------------------------------------------", write_to_log=True)
+        printt("WAIT_FOR_OPEN_TRADE is enabled", write_to_log=True)
+        printt("", write_to_log=True)
         printt("It works with 2 ways:", write_to_log=True)
         printt("1/ Bot will scan mempool to detect Enable Trading functions", write_to_log=True)
         printt("2/ Bot will wait for price to move before making a BUY order", write_to_log=True)
@@ -2920,12 +2920,19 @@ def wait_for_open_trade(token, inToken, outToken):
         printt("------------------------------------------------------------------------------------------------------------------------------", write_to_log=True)
 
     if token['WAIT_FOR_OPEN_TRADE'] == 'mempool' or token['WAIT_FOR_OPEN_TRADE'] == 'mempool_after_buy_tx_failed':
+        printt("-----------------------------------------------------------------------------------------------------------------------------", write_to_log=True)
+        printt("WAIT_FOR_OPEN_TRADE is enabled", write_to_log=True)
+        printt("", write_to_log=True)
         printt("It will scan mempool to detect Enable Trading functions", write_to_log=True)
         printt("------------------------------------------------------------------------------------------------------------------------------", write_to_log=True)
     
-    if token['WAIT_FOR_OPEN_TRADE'] == 'pinksale':
-        printt("It will scan mempool to detect Pinksale launch", write_to_log=True)
-        printt("------------------------------------------------------------------------------------------------------------------------------", write_to_log=True)
+    if parameter == 'pinksale':
+        printt("------------------------------------------------------", write_to_log=True)
+        printt("Let's scan mempool to detect Pinksale launch!", write_to_log=True)
+        printt("")
+        printt_warn("Don't worry if nothing appears : it's normal! Do not close the bot", write_to_log=True)
+        printt("")
+        printt("------------------------------------------------------", write_to_log=True)
 
     openTrade = False
     
@@ -2933,12 +2940,12 @@ def wait_for_open_trade(token, inToken, outToken):
     token['_PREVIOUS_QUOTE'] = check_price(inToken, outToken, token['USECUSTOMBASEPAIR'], token['LIQUIDITYINNATIVETOKEN'], int(token['_CONTRACT_DECIMALS']), int(token['_BASE_DECIMALS']))
 
     # If we look for Pinksale sales, we look into the Presale Address's transactions for 0x4bb278f3 methodID
-    if token['WAIT_FOR_OPEN_TRADE'] == 'pinksale':
+    if parameter == 'pinksale':
         tx_filter = client.eth.filter({"filter_params": "pending", "address": Web3.toChecksumAddress(token['PINKSALE_PRESALE_ADDRESS'])})
     else:
         tx_filter = client.eth.filter({"filter_params": "pending", "address": inToken})
     
-    if token['WAIT_FOR_OPEN_TRADE'] == 'pinksale':
+    if parameter == 'pinksale':
         # Function: finalize() - check examples below
         list_of_methodId = ["0x4bb278f3"]
     else:
@@ -2948,7 +2955,7 @@ def wait_for_open_trade(token, inToken, outToken):
     while openTrade == False:
     
         # If "true" value is selected, it scans the price in // to detect for price movement
-        if token['WAIT_FOR_OPEN_TRADE'] == 'true' or token['WAIT_FOR_OPEN_TRADE'] == 'true_no_message' or token['WAIT_FOR_OPEN_TRADE'] == 'true_after_buy_tx_failed' or token['WAIT_FOR_OPEN_TRADE'] == 'true_after_buy_tx_failed_no_message':
+        if parameter != 'pinksale' and (token['WAIT_FOR_OPEN_TRADE'] == 'true' or token['WAIT_FOR_OPEN_TRADE'] == 'true_no_message' or token['WAIT_FOR_OPEN_TRADE'] == 'true_after_buy_tx_failed' or token['WAIT_FOR_OPEN_TRADE'] == 'true_after_buy_tx_failed_no_message'):
             pprice = check_price(inToken, outToken, token['USECUSTOMBASEPAIR'], token['LIQUIDITYINNATIVETOKEN'], int(token['_CONTRACT_DECIMALS']), int(token['_BASE_DECIMALS']))
     
             if pprice != float(token['_PREVIOUS_QUOTE']):
@@ -2970,14 +2977,17 @@ def wait_for_open_trade(token, inToken, outToken):
                     openTrade = True
                     token['_GAS_IS_CALCULATED'] = True
                     token['_GAS_TO_USE'] = int(txHashDetails.gasPrice) / 1000000000
-                    printt_ok("OPEN TRADE FUNCTION DETECTED --> Trading is enabled --> Bot will buy", write_to_log=True)
+                    if parameter == 'pinksale':
+                        printt_ok("Pinksale finalize() function detected --> let's buy!", write_to_log=True)
+                    else:
+                        printt_ok("OPEN TRADE FUNCTION DETECTED --> Trading is enabled --> let's buy!", write_to_log=True)
                     printt_ok("MethodID: ", txFunction, " Block: ", tx_event['blockNumber'], " Found Signal", "in txHash:", txHash.hex(), write_to_log=True)
-                    printt_ok("GAS will be the same as liquidity adding event. GAS=", token['_GAS_TO_USE'])
+                    printt_ok("GAS will be the same as detected Tx --> GAS=", token['_GAS_TO_USE'])
                     break
                 else:
                     printt("Found something in mempool - MethodID: ", txFunction, " Block: ", tx_event['blockNumber'])
         except Exception as e:
-            printt_err("Wait_for_open_trade Error. It can happen with Public node : private node is recommended. Still, let's continue.")
+            printt_err("Error detected. It can happen with Public node : private node is recommended. Still, let's continue.")
             continue
             
             
@@ -5498,15 +5508,13 @@ def run():
                 if token['ENABLED'] == 'true':
              
                     #
-                    # CHECK MEMPOOL
-                    #
-                    # There are several options :
-                    # TODO : implement that
+                    # BALANCE CHECK
+                    # We won't try to buy this token if balance > MAXTOKENS
                     #
                     if token['_TOKEN_BALANCE'] < token['MAXTOKENS']:
                         #
-                        # MEMPOOL SCAN
-                        #   Bot will scan the mempool for Liquidity Events
+                        # METHODS ID definition
+                        # Let's define which methods id we'll search in mempool
                         #
                         if settings['MEMPOOL_METHOD'] == 'pinksale':
                             # Function: finalize() - check examples below
@@ -5527,43 +5535,30 @@ def run():
                             # Function: addLiquidity() *** (on UniCrypt --> needs to be implemented)
                             # MethodID: 0xe8078d94
 
-
-                        # Working on that
                         #
-                        # if settings['KIND_OF_NODE'] == 'public_node':
-                        #     scan_mempool_public_node(token, methods_id)
-                        # elif settings['KIND_OF_NODE'] == 'private_node':
-                        #     scan_mempool_private_node(token, methods_id)
-                        # elif settings['KIND_OF_NODE'] == 'classic':
-                        #     scan_mempool_classic(token)
-                        # else:
-                        #     scan_mempool(token, methods_id)
+                        # MEMPOOL SCAN
+                        # Let's scan mempool
+                        #
                         if token['_BUY_IS_MADE'] == False:
-                            scan_mempool_classic(token)
+                            if settings['MEMPOOL_METHOD'] == 'pinksale':
+                                wait_for_open_trade(token, token['_IN_TOKEN'], token['_OUT_TOKEN'], 'pinksale')
+                            else:
+                                scan_mempool_classic(token)
 
                         #
                         # OPEN TRADE CHECK
                         #   If the option is selected, bot wait for trading_is_on == True to create a BUY order
                         #
     
-                            if token['WAIT_FOR_OPEN_TRADE'].lower() == 'true' or token['WAIT_FOR_OPEN_TRADE'].lower() == 'true_no_message' or token['WAIT_FOR_OPEN_TRADE'] == 'mempool' or token['WAIT_FOR_OPEN_TRADE'] == 'pinksale':
-                                wait_for_open_trade(token, token['_IN_TOKEN'], token['_OUT_TOKEN'])
+                            if token['WAIT_FOR_OPEN_TRADE'].lower() == 'true' or token['WAIT_FOR_OPEN_TRADE'].lower() == 'true_no_message' or token['WAIT_FOR_OPEN_TRADE'].lower() == 'mempool':
+                                wait_for_open_trade(token, token['_IN_TOKEN'], token['_OUT_TOKEN'], 'normal')
         
                             printt_debug(token)
-
-                            #
-                            # LIQUIDITY CHECK
-                            #   If the option is selected
-                            #
                             
-                            # No liquidity check for BUY as liquidity is not added yet when it's detected on Mempool !
-                            
-                            # if token["MINIMUM_LIQUIDITY_IN_DOLLARS"] != 0:
-                            #     liquidity_result = check_liquidity_amount(token, token['_BASE_DECIMALS'], token['_WETH_DECIMALS'])
-                            #     if liquidity_result == 0:
-                            #         continue
-                            #     else:
-                            #         pass
+                            #
+                            # BUY
+                            # Let's buy!
+                            #
                             
                             if command_line_args.sim_buy:
                                 tx = command_line_args.sim_buy
@@ -5606,7 +5601,7 @@ def run():
     
                                     # If user selected WAIT_FOR_OPEN_TRADE = 'XXX_after_buy_tx_failed" bot enters WAIT_FOR_OPEN_TRADE mode
                                     if token['WAIT_FOR_OPEN_TRADE'].lower() == 'true_after_buy_tx_failed' or token['WAIT_FOR_OPEN_TRADE'].lower() == 'true_after_buy_tx_failed_no_message' or token['WAIT_FOR_OPEN_TRADE'] == 'mempool_after_buy_tx_failed':
-                                        wait_for_open_trade(token, token['_IN_TOKEN'], token['_OUT_TOKEN'])
+                                        wait_for_open_trade(token, token['_IN_TOKEN'], token['_OUT_TOKEN'], 'normal')
     
                                 else:
                                     # transaction is a SUCCESS
