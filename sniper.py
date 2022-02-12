@@ -2937,7 +2937,8 @@ def wait_for_open_trade(token, inToken, outToken, parameter):
     openTrade = False
     
     # We store the initial token price by running check_price() once
-    token['_PREVIOUS_QUOTE'] = check_price(inToken, outToken, token['USECUSTOMBASEPAIR'], token['LIQUIDITYINNATIVETOKEN'], int(token['_CONTRACT_DECIMALS']), int(token['_BASE_DECIMALS']))
+    if parameter != 'pinksale':
+        token['_PREVIOUS_QUOTE'] = check_price(inToken, outToken, token['USECUSTOMBASEPAIR'], token['LIQUIDITYINNATIVETOKEN'], int(token['_CONTRACT_DECIMALS']), int(token['_BASE_DECIMALS']))
 
     # If we look for Pinksale sales, we look into the Presale Address's transactions for 0x4bb278f3 methodID
     if parameter == 'pinksale':
