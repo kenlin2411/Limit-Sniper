@@ -1122,7 +1122,7 @@ printt("************************************************************************
 
 # Check for version
 #
-version = '1.1.2'
+version = '1.1.3'
 printt("YOUR BOT IS CURRENTLY RUNNING VERSION ", version, write_to_log=True)
 check_release()
 
