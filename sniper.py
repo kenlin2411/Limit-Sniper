@@ -783,7 +783,7 @@ def reload_tokens_file(tokens_path, load_message=True):
 
     if load_message == True:
         printt("")
-        printt("Reloading tokens from", tokens_path, '\033[31m', "- do NOT change token SYMBOL in real time", '\033[0m')
+        printt("Reloading tokens from", tokens_path, '\033[31m', "- do NOT change token SYMBOL in real time", '\033[0m', write_to_log=True)
         printt("")
 
     with open(tokens_path, ) as js_file:
@@ -870,7 +870,10 @@ def reload_tokens_file(tokens_path, load_message=True):
         '_FIRST_SELL_QUOTE': 0,
         '_BUILT_BY_BOT': False,
         '_EXCHANGE_BASE_SYMBOL': settings['_EXCHANGE_BASE_SYMBOL'],
-        '_PAIR_SYMBOL': ''
+        '_PAIR_SYMBOL': '',
+        '_NOT_ENOUGH_TO_BUY': False,
+        '_IN_TOKEN': '',
+        '_OUT_TOKEN': ''
     }
     
     for token in tokens:
@@ -1132,7 +1135,7 @@ if settings['EXCHANGE'] == 'pancakeswap':
         my_provider = settings['CUSTOMNODE']
         print(timestamp(), 'Using custom node.')
     else:
-        my_provider = "https://bsc-dataseed4.defibit.io"
+        my_provider = "https://bsc-dataseed1.defibit.io"
     
     if not my_provider:
         printt_err('Custom node empty. Exiting')
@@ -3120,8 +3123,10 @@ def build_sell_conditions(token_dict, condition, show_message):
     stop = token_dict['STOPLOSSPRICEINBASE']
 
     # Calculates cost per token
-    # TODO : solve problem here https://t.me/LimitSwap/102375
-    if float(token_dict['_TOKEN_BALANCE']) > 0:
+    #  Bot compare between _TOKEN_BALANCE and _PREVIOUS_TOKEN_BALANCE to calculate it only if a BUY order was made
+    #
+
+    if float(token_dict['_TOKEN_BALANCE']) > 0 and (token_dict['_TOKEN_BALANCE'] != token_dict['_PREVIOUS_TOKEN_BALANCE']):
         if token_dict['KIND_OF_SWAP'] == 'base':
             token_dict['_COST_PER_TOKEN'] = float(token_dict['BUYAMOUNTINBASE']) / float((token_dict['_TOKEN_BALANCE'] - token_dict['_PREVIOUS_TOKEN_BALANCE']))
         elif token_dict['KIND_OF_SWAP'] == 'tokens':
@@ -3135,17 +3140,17 @@ def build_sell_conditions(token_dict, condition, show_message):
         sell = sell.replace("%","")
         if condition == 'before_buy':
             if show_message == "show_message":
-                printt_err("--------------------------------------------------------------------------------------------------")
-                printt_err("    DO NOT CLOSE THE BOT after BUY order is made, or your calculated SELLPRICE will be lost!")
-                printt_err("--------------------------------------------------------------------------------------------------")
+                printt_err("--------------------------------------------------------------------------------------------------", write_to_log=False)
+                printt_err("    DO NOT CLOSE THE BOT after BUY order is made, or your calculated SELLPRICE will be lost!", write_to_log=False)
+                printt_err("--------------------------------------------------------------------------------------------------", write_to_log=False)
                 printt("")
                 printt_info(token_dict['SYMBOL'],": since you have put a % in SELLPRICE, and bot did not buy yet, we will set SELLPRICE = 99999 so as the bot not to sell if you stop and run it again.")
             token_dict['_CALCULATED_SELLPRICEINBASE'] = 99999
         else:
             token_dict['_CALCULATED_SELLPRICEINBASE'] = token_dict['_COST_PER_TOKEN'] * (float(sell) / 100)
             printt_info("")
-            printt_info(token_dict['SYMBOL'], " cost per token was: ", token_dict['_COST_PER_TOKEN'])
-            printt_info("--> SELLPRICEINBASE = ", token_dict['SELLPRICEINBASE'],"*", token_dict['_COST_PER_TOKEN'], "= ", token_dict['_CALCULATED_SELLPRICEINBASE'])
+            printt_info(token_dict['SYMBOL'], " cost per token was: ", token_dict['_COST_PER_TOKEN'], write_to_log=True)
+            printt_info("--> SELLPRICEINBASE = ", token_dict['SELLPRICEINBASE'],"*", token_dict['_COST_PER_TOKEN'], "= ", token_dict['_CALCULATED_SELLPRICEINBASE'], write_to_log=True)
     # Otherwise, don't adjust the sell price in base
     else:
         token_dict['_CALCULATED_SELLPRICEINBASE'] = sell
@@ -5492,13 +5497,17 @@ def run():
                     # Before changing tokens, we store them in a dict, to be able to re-use the internal values like "COST_PER_TOKEN"
                     # The key to re-use them will be token['SYMBOL']
                     #
+
+                    printt_debug("tokens before reload:", tokens)
+
                     _TOKENS_saved = {}
                     for token in tokens:
                         _TOKENS_saved[token['SYMBOL']] = token
 
                     reload_bot_settings(bot_settings)
 
-                    tokens = reload_tokens_file(command_line_args.tokens, True)
+                    # Restart the bot to reload the tokens
+                    runLoop()
 
             else:
                 load_token_file_increment = load_token_file_increment + 1
