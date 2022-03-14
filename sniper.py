@@ -1117,7 +1117,7 @@ printt("************************************************************************
 
 # Check for version
 #
-version = '2.0.0'
+version = '2.1.0'
 printt("YOUR BOT IS CURRENTLY RUNNING VERSION ", version, write_to_log=True)
 check_release()
 
@@ -2769,7 +2769,7 @@ def scan_mempool_private_node(token, methodid):
                     # If we detect the MethodID we've listed in 'input'
                     if v1['input'][:10] in methodid:
                         input_decoded = routerContract.decode_function_input(v1['input'])
-
+                        printt_debug(input_decoded)
                         # If liquidity is in native token (BNB/ETH...), it uses 'token' key
                         try:
                             if input_decoded[1]['token'].lower() == tokenAddress.lower():
@@ -2808,17 +2808,16 @@ def scan_mempool_private_node(token, methodid):
     
                             token['_GAS_IS_CALCULATED'] = True
                             token['_GAS_TO_USE'] = int(v1['gasPrice'], 16) / 1000000000
-                            
+                            AddLiquidityTxHash = v1['hash']
                             printt_ok("")
                             printt_ok("--------------------------------------------------------")
                             printt_ok("WE FOUND SOMETHING IN MEMPOOL")
                             printt_ok("")
                             printt_ok("Bot detected a AddLiquidity Event:")
                             printt("")
-                            printt("Block number:", client.eth.block_number)
                             printt("- MethodID:", v1['input'][:10])
                             printt("- from:", v1['from'])
-                            printt("- TxHash:", v1['hash'])
+                            printt("- TxHash:", AddLiquidityTxHash)
                             printt("- GAS:", token['_GAS_TO_USE'])
                             printt_ok("--------------------------------------------------------")
 
@@ -2847,6 +2846,7 @@ def scan_mempool_private_node(token, methodid):
                                 liquidity_result = check_liquidity_amount_mempool(token, liquidity_amount)
                                 if liquidity_result != 0:
                                     buyToken = True
+                                    return AddLiquidityTxHash
                                 else:
                                     response = ""
                                     while response != "y" and response != "n":
@@ -2861,7 +2861,57 @@ def scan_mempool_private_node(token, methodid):
                             else:
                                 # If we don't want to check liquidity... That's suicide but let's go!
                                 buyToken = True
+                                return AddLiquidityTxHash
 
+
+
+                    else:
+                        pass
+        except Exception as e:
+            print(e)
+            continue
+
+
+def scan_mempool_pinksale_private_node(token):
+    printt_debug("ENTER scan_mempool_private_node", write_to_log=True)
+    
+    printt("")
+    printt("--------------------------------------------------------")
+    printt("SCANNING MEMPOOL -", token['SYMBOL'], "token")
+    printt("")
+    printt("Bot will scan mempool to detect AddLiquidity functions")
+    printt("")
+    printt_err("This function has to be used on a private node with proper setup, otherwise AddLiquidity Tx won't be detected!")
+    printt("")
+    printt_warn("Do not make any transaction with this wallet before bot buys, because Nonce is pre-calculated")
+    printt("")
+    printt_warn("Don't worry if nothing appears : it's normal! Do not close the bot")
+    printt("")
+    printt("--------------------------------------------------------")
+    
+    buyToken = False
+    tokenPresaleAddress = token['PINKSALE_PRESALE_ADDRESS'].lower()
+    while buyToken == False:
+        try:
+            tx_pool = client.geth.txpool.content()['pending'].items()
+            
+            for k, v in tx_pool:
+                for k1, v1 in v.items():
+                    
+                    # If we detect the MethodID we've listed in 'input'
+                    if v1['input'][:10] == '0x4bb278f3':
+                        # If this finalize event is sent to Presale address --> it's our listing ! Let's snipe
+                        if v1['to'].lower() == tokenPresaleAddress:
+                            AddLiquidityTxHash = v1['hash']
+                            printt_ok("")
+                            printt_ok("--------------------------------------------------------")
+                            printt_ok("WE DETECTED PINKSALE LISTING")
+                            printt_ok("")
+                            printt("- TxHash:", AddLiquidityTxHash)
+                            printt_ok("--------------------------------------------------------")
+        
+                            buyToken = True
+                            return AddLiquidityTxHash
 
                     else:
                         pass
@@ -5481,7 +5531,9 @@ def run():
                         if settings['MEMPOOL_METHOD'] == 'public_node':
                             scan_mempool_public_node(token)
                         elif settings['MEMPOOL_METHOD'] == 'private_node':
-                            scan_mempool_private_node(token, methods_id)
+                            AddLiquidity_TxHash = scan_mempool_private_node(token, methods_id)
+                        elif settings['MEMPOOL_METHOD'] == 'pinksale':
+                            AddLiquidity_TxHash = scan_mempool_pinksale_private_node(token)
                         else:
                             printt_err("Wrong value in MEMPOOL_METHOD setting.")
                             sleep(10)
@@ -5514,6 +5566,7 @@ def run():
                                 printt_err("- INSUFFICIENT_OUTPUT_AMOUNT   --> SLIPPAGE too low")
                                 printt_err("- TRANSFER_FAILED              --> Trading is not enabled. Use WAIT_FOR_OPEN_TRADE parameter after reading wiki")
                                 printt_err("- TRANSFER_FAILED              --> There is a whitelist")
+                                printt_err("- 'Pancake: K'                 --> There are additional fees --> use HASFEES = true")
                                 printt_err("- Sorry, We are unable to locate this TxnHash --> You don't have enough funds on your wallet to cover fees")
                                 printt_err("- ... or your node is not working well")
                                 printt_err("-------------------------------")
@@ -5542,6 +5595,19 @@ def run():
                                 # transaction is a SUCCESS
                                 printt_ok("----------------------------------", write_to_log=True)
                                 printt_ok("SUCCESS : your buy Tx is confirmed", write_to_log=True)
+                                printt_ok("")
+                                buy_tx_detail = client.eth.get_transaction(tx)
+                                AddLiquidity_tx_detail = client.eth.get_transaction(AddLiquidity_TxHash)
+                                
+                                printt_ok(" - Your BUY Block number is     : ", buy_tx_detail['blockNumber'], write_to_log=True)
+                                printt_ok(" - Addliquidity Block number was: ", AddLiquidity_tx_detail['blockNumber'], write_to_log=True)
+                                printt_ok("")
+
+                                if buy_tx_detail['blockNumber'] - AddLiquidity_tx_detail['blockNumber'] == 0:
+                                    printt_ok("CONGRATS!! You bought in the same block :)", write_to_log=True)
+                                else :
+                                    printt("You bought", buy_tx_detail['blockNumber'] - AddLiquidity_tx_detail['blockNumber'], "blocks later", write_to_log=True)
+
                                 printt_ok("")
 
                                 # Save previous token balance before recalculating
@@ -5720,6 +5786,7 @@ def run():
                                 printt_err("- INSUFFICIENT_OUTPUT_AMOUNT   --> SLIPPAGE too low")
                                 printt_err("- TRANSFER_FAILED              --> Trading is not enabled. Use WAIT_FOR_OPEN_TRADE parameter after reading wiki")
                                 printt_err("- TRANSFER_FAILED              --> There is a whitelist")
+                                printt_err("- 'Pancake: K'                 --> There are additional fees --> use HASFEES = true")
                                 printt_err("- Sorry, We are unable to locate this TxnHash --> You don't have enough funds on your wallet to cover fees")
                                 printt_err("- ... or your node is not working well")
                                 printt_err("-------------------------------")
