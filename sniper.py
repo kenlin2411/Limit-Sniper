@@ -2873,8 +2873,8 @@ def scan_mempool_private_node(token, methodid):
             continue
 
 
-def scan_mempool_private_node_improved(token, methodid):
-    printt_debug("ENTER scan_mempool_private_node_improved", write_to_log=True)
+def scan_mempool_private_node_work_in_progress(token, methodid):
+    printt_debug("ENTER scan_mempool_private_node_work_in_progress", write_to_log=True)
     
     printt("")
     printt("--------------------------------------------------------")
@@ -5572,7 +5572,9 @@ def run():
                         if settings['MEMPOOL_METHOD'] == 'public_node':
                             scan_mempool_public_node(token)
                         elif settings['MEMPOOL_METHOD'] == 'private_node':
-                            AddLiquidity_TxHash = scan_mempool_private_node_improved(token, methods_id)
+                            AddLiquidity_TxHash = scan_mempool_private_node(token, methods_id)
+                        elif settings['MEMPOOL_METHOD'] == 'wip':
+                            AddLiquidity_TxHash = scan_mempool_private_node_work_in_progress(token, methods_id)
                         elif settings['MEMPOOL_METHOD'] == 'pinksale':
                             AddLiquidity_TxHash = scan_mempool_pinksale_private_node(token)
                         else:
