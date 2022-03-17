@@ -1141,7 +1141,8 @@ if settings['EXCHANGE'] == 'pancakeswap':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        # client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1185,7 +1186,7 @@ if settings['EXCHANGE'].lower() == 'pancakeswaptestnet':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1228,7 +1229,7 @@ if settings['EXCHANGE'].lower() == 'traderjoe':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1265,7 +1266,7 @@ if settings["EXCHANGE"] == 'pangolin':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1300,7 +1301,7 @@ if settings['EXCHANGE'] == 'pinkswap':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1340,7 +1341,7 @@ if settings['EXCHANGE'] == 'biswap':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1379,7 +1380,7 @@ elif settings['EXCHANGE'].lower() == 'babyswap':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1418,7 +1419,7 @@ if settings['EXCHANGE'] == 'bakeryswap':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1456,7 +1457,7 @@ if settings['EXCHANGE'] == 'apeswap':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1495,7 +1496,7 @@ elif settings["EXCHANGE"] == 'uniswap':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1530,7 +1531,7 @@ elif settings["EXCHANGE"] == 'uniswaptestnet':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1564,7 +1565,7 @@ elif settings["EXCHANGE"] == 'kuswap':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1598,7 +1599,7 @@ elif settings["EXCHANGE"] == 'koffeeswap':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1631,7 +1632,7 @@ elif settings["EXCHANGE"] == 'spookyswap':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1665,7 +1666,7 @@ elif settings["EXCHANGE"] == 'protofi':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1699,7 +1700,7 @@ elif settings["EXCHANGE"] == 'spiritswap':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1733,7 +1734,7 @@ elif settings["EXCHANGE"] == 'quickswap':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1767,7 +1768,7 @@ elif settings["EXCHANGE"] == 'polygon-apeswap':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1800,7 +1801,7 @@ elif settings["EXCHANGE"] == 'waultswap':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1834,7 +1835,7 @@ elif settings["EXCHANGE"] == 'cronos-vvs':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1866,7 +1867,7 @@ elif settings["EXCHANGE"] == 'cronos-meerkat':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1898,7 +1899,7 @@ elif settings["EXCHANGE"] == 'cronos-crona':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -1930,7 +1931,7 @@ elif settings["EXCHANGE"] == 'viperswap':
         client = Web3(Web3.HTTPProvider(my_provider))
     elif my_provider[0].lower() == 'w':
         print(timestamp(), 'Using WebsocketProvider')
-        client = Web3(Web3.WebsocketProvider(my_provider))
+        client = Web3(WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
     else:
         print(timestamp(), 'Using IPCProvider')
         client = Web3(Web3.IPCProvider(my_provider))
@@ -2872,8 +2873,48 @@ def scan_mempool_private_node(token, methodid):
             continue
 
 
+def scan_mempool_private_node_improved(token, methodid):
+    printt_debug("ENTER scan_mempool_private_node_improved", write_to_log=True)
+    
+    printt("")
+    printt("--------------------------------------------------------")
+    printt("SCANNING MEMPOOL2 -", token['SYMBOL'], "token")
+    printt("")
+    printt("Bot will scan mempool to detect AddLiquidity functions")
+    printt("")
+    printt_err("This function has to be used on a private node with proper setup, otherwise AddLiquidity Tx won't be detected!")
+    printt("")
+    printt_warn("Do not make any transaction with this wallet before bot buys, because Nonce is pre-calculated")
+    printt("")
+    printt_warn("Don't worry if nothing appears : it's normal! Do not close the bot")
+    printt("")
+    printt("--------------------------------------------------------")
+    
+    buyToken = False
+    tokenAddress = Web3.toChecksumAddress(token['ADDRESS'])
+    while buyToken == False:
+        try:
+            tx_pool = client.geth.txpool.content()['pending']
+
+            pool_json = Web3.toJSON(tx_pool)
+
+            pool_data = json.loads(pool_json)
+
+            pool_info = [(list(pool.items())[0][1]['hash'],
+                          routerContract.decode_function_input(list(pool.items())[0][1]['input'])[1])
+                         for pool in pool_data.values()
+                         if tokenAddress in list(pool.items())[0][1]['to'] and
+                         methodid in list(pool.items())[0][1]['input']]
+            #
+            # printt(pool_info)
+            
+        except Exception as e:
+            print(e)
+            continue
+
+
 def scan_mempool_pinksale_private_node(token):
-    printt_debug("ENTER scan_mempool_private_node", write_to_log=True)
+    printt_debug("ENTER scan_mempool_pinksale_private_node", write_to_log=True)
     
     printt("")
     printt("--------------------------------------------------------")
@@ -5531,7 +5572,7 @@ def run():
                         if settings['MEMPOOL_METHOD'] == 'public_node':
                             scan_mempool_public_node(token)
                         elif settings['MEMPOOL_METHOD'] == 'private_node':
-                            AddLiquidity_TxHash = scan_mempool_private_node(token, methods_id)
+                            AddLiquidity_TxHash = scan_mempool_private_node_improved(token, methods_id)
                         elif settings['MEMPOOL_METHOD'] == 'pinksale':
                             AddLiquidity_TxHash = scan_mempool_pinksale_private_node(token)
                         else:
