@@ -2960,7 +2960,7 @@ def scan_mempool_private_node(token, methodid):
                             printt("- AddLiquidity TxHash:", AddLiquidityTxHash)
                             printt("")
                             printt("- And made a BUY order :", Web3.toHex(buy_tx_hash))
-                            printt("- With same Gas as AddLiquidity Tx:", v1['gasPrice'])
+                            printt("- With same Gas as AddLiquidity Tx:", int(v1['gasPrice'], 16) / 1000000000)
                             printt_ok("--------------------------------------------------------")
                             printt("")
 
