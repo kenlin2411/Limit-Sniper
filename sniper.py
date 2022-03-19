@@ -3071,7 +3071,7 @@ def liquidity_check_private_node(token, v1, case):
         printt_warn("NOT ENOUGH LIQUIDITY", write_to_log=True)
         printt_warn("", write_to_log=True)
         printt_warn("- You have set MINIMUM_LIQUIDITY_IN_DOLLARS  =", token['MINIMUM_LIQUIDITY_IN_DOLLARS'], "$", write_to_log=True)
-        printt_warn("- Liquidity detected for", token['SYMBOL'], "=", "{:.2f}".format(liquidity_amount_in_dollars), "$", write_to_log=True)
+        printt_warn("- Liquidity detected for", token['SYMBOL'], "=", "{:.14g}".format(liquidity_amount_in_dollars), "$", write_to_log=True)
         printt_warn("------------------------------------------------", write_to_log=True)
 
         response = ""
@@ -3080,7 +3080,8 @@ def liquidity_check_private_node(token, v1, case):
             response = input("                           Would you like to restart the bot and scan mempool again? (y/n): ")
 
         if response == "y":
-            scan_mempool_private_node(token, methodid)
+            methods_id = ["0xf305d719", "0xe8e33700", "0xf91b3f72", "0xd71a1bc5"]
+            scan_mempool_private_node(token, methods_id)
         else:
             sys.exit()
 
