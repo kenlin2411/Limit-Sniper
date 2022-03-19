@@ -95,8 +95,7 @@ signal.signal(signal.SIGINT, signal_handler)
 
 
 def timestamp():
-    timestamp = time()
-    dt_object = datetime.fromtimestamp(timestamp)
+    dt_object = datetime.now().strftime('%m-%d %H:%M:%S.%f')
     return dt_object
 
 
@@ -1118,7 +1117,7 @@ printt("************************************************************************
 
 # Check for version
 #
-version = '2.2.0'
+version = '2.2.1'
 printt("YOUR BOT IS CURRENTLY RUNNING VERSION ", version, write_to_log=True)
 check_release()
 
@@ -2594,6 +2593,75 @@ def check_rugdoc_api(token):
             token['_QUOTE'] = 0
 
 
+def pre_calculate_custom_bases_pairs(base_symbol):
+    # This function is made to calculate price of base token (ETH / BNB / AVAX / FTM / KCS...)
+    # Price will be updated every 30s
+    
+    printt_debug("ENTER: pre_calculate_custom_bases_pairs")
+    
+    if base_symbol == "BNB" or base_symbol == "BNB ":
+        printt_debug("pre_calculate_custom_bases_pairs for BNB")
+        USDT = calculate_custom_base_price_big_ttl(Web3.toChecksumAddress('0x55d398326f99059ff775485246999027b3197955'), 1000000000000000000, 1000000000000000000)
+        printt_debug("USDT price :", 1/USDT, "\n")
+        
+        BUSD = calculate_custom_base_price_big_ttl(Web3.toChecksumAddress('0xe9e7cea3dedca5984780bafc599bd69add087d56'), 1000000000000000000, 1000000000000000000)
+        printt_debug("BUSD price :", 1/BUSD, "\n")
+
+        USDC = calculate_custom_base_price_big_ttl(Web3.toChecksumAddress('0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d'), 1000000000000000000, 1000000000000000000)
+        printt_debug("USDC price :", 1/USDC, "\n")
+
+    
+    elif base_symbol == "BNBt":
+        printt_debug("pre_calculate_custom_bases_pairs for BNBt")
+        BNBt = calculate_custom_base_price_big_ttl(Web3.toChecksumAddress('0x78867bbeef44f2326bf8ddd1941a4439382ef2a7'), 1000000000000000000, 1000000000000000000)
+        printt_debug("BNBt price :", 1/BNBt, "\n")
+
+    elif base_symbol == "ETH":
+        printt_debug("pre_calculate_custom_bases_pairs for ETH")
+        
+        USDT = calculate_custom_base_price_big_ttl(Web3.toChecksumAddress('0xdac17f958d2ee523a2206206994597c13d831ec7'), 1000000, 1000000000000000000)
+        printt_debug("USDT price :", 1/USDT, "\n")
+    
+        USDC = calculate_custom_base_price_big_ttl(Web3.toChecksumAddress('0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'), 1000000, 1000000000000000000)
+        printt_debug("USDC price :", 1/USDC, "\n")
+    
+        
+    elif base_symbol == "AVAX":
+        printt_debug("pre_calculate_custom_bases_pairs for AVAX")
+
+        MIM = calculate_custom_base_price_big_ttl(Web3.toChecksumAddress('0x130966628846bfd36ff31a822705796e8cb8c18d'), 1000000000000000000, 1000000000000000000)
+        printt_debug("MIM price :", 1/MIM, "\n")
+        
+        USDC = calculate_custom_base_price_big_ttl(Web3.toChecksumAddress('0xA7D7079b0FEaD91F3e65f86E8915Cb59c1a4C664'), 1000000, 1000000000000000000)
+        printt_debug("USDC price :", 1/USDC, "\n")
+        
+        USDCb = calculate_custom_base_price_big_ttl(Web3.toChecksumAddress('0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e'), 1000000, 1000000000000000000)
+        printt_debug("USDCb price :", 1/USDCb, "\n")
+        
+        USDT = calculate_custom_base_price_big_ttl(Web3.toChecksumAddress('0xc7198437980c041c805a1edcba50c1ce5db95118'), 1000000, 1000000000000000000)
+        printt_debug("USDT price :", 1/USDT, "\n")
+
+    
+    elif base_symbol == "FTM":
+        printt_debug("pre_calculate_custom_bases_pairs for FTM")
+        
+        USDC = calculate_custom_base_price_big_ttl(Web3.toChecksumAddress('0x04068da6c83afcfa0e13ba15a6696662335d5b75'), 1000000, 1000000000000000000)
+        printt_debug("USDC price :", 1/USDC, "\n")
+
+        USDT = calculate_custom_base_price_big_ttl(Web3.toChecksumAddress('0x049d68029688eabf473097a2fc38ef61633a3c7a'), 1000000, 1000000000000000000)
+        printt_debug("USDT price :", 1/USDT, "\n")
+
+    
+    elif base_symbol == "MATIC":
+        printt_debug("pre_calculate_custom_bases_pairs for MATIC")
+
+        USDT = calculate_custom_base_price_big_ttl(Web3.toChecksumAddress('0xc2132d05d31c914a87c6611c10748aeb04b58e8f'), 1000000, 1000000000000000000)
+        printt_debug("USDT price :", 1/USDT, "\n")
+
+        USDC = calculate_custom_base_price_big_ttl(Web3.toChecksumAddress('0x2791bca1f2de4661ed88a30c99a7a9449aa84174'), 1000000, 1000000000000000000)
+        printt_debug("USDC price :", 1/USDC, "\n")
+
+
 def scan_mempool_public_node(token):
     printt_debug("ENTER scan_mempool_public_node", write_to_log=True)
     
@@ -2743,7 +2811,22 @@ def scan_mempool_public_node(token):
 
 def scan_mempool_private_node(token, methodid):
     printt_debug("ENTER scan_mempool_private_node", write_to_log=True)
-    
+
+    tokenBought = False
+
+    # Preset of values to accelerate speed
+    tokenAddress = Web3.toChecksumAddress(token['ADDRESS'])
+    walletused = Web3.toChecksumAddress(settings['WALLETADDRESS'])
+    amount = Web3.toWei(token['BUYAMOUNTINBASE'], 'ether')
+    # Determine gas
+    gaslimit = int(token['GASLIMIT'])
+
+    # Determine nonce
+    nonce = client.eth.getTransactionCount(Web3.toChecksumAddress(settings['WALLETADDRESS']))
+
+    # Pre-calculates price in $ on most common custom base pairs (like BUSD...) to accelerate calculation
+    pre_calculate_custom_bases_pairs(token['_EXCHANGE_BASE_SYMBOL'])
+
     printt("")
     printt("--------------------------------------------------------")
     printt("SCANNING MEMPOOL -", token['SYMBOL'], "token")
@@ -2758,19 +2841,6 @@ def scan_mempool_private_node(token, methodid):
     printt("")
     printt("--------------------------------------------------------")
     
-    tokenBought = False
-    
-    # Preset of values to accelerate speed
-    tokenAddress = Web3.toChecksumAddress(token['ADDRESS'])
-    printt_debug("tokenAddress:", tokenAddress)
-    walletused = Web3.toChecksumAddress(settings['WALLETADDRESS'])
-    amount = Web3.toWei(token['BUYAMOUNTINBASE'], 'ether')
-    # Determine gas
-    gaslimit = int(token['GASLIMIT'])
-    gas_Price = Web3.toWei(int(token['_GAS_TO_USE']), 'gwei')
-    # Determine nonce
-    nonce = client.eth.getTransactionCount(Web3.toChecksumAddress(settings['WALLETADDRESS']))
-
     # Start monitoring
     while tokenBought == False:
         try:
@@ -2781,19 +2851,17 @@ def scan_mempool_private_node(token, methodid):
 
                     # If we detect the MethodID we've listed in 'input'
                     if v1['input'][:10] in methodid:
-                        printt_debug("detected AddLiquidity:", v1['hash'])
                         input_decoded = routerContract.decode_function_input(v1['input'])
                         # If liquidity is in native token (BNB/ETH...), it uses 'token' key
                         try:
                             if input_decoded[1]['token'] == tokenAddress:
                                 #  it's the token you've put in your tokens.json --> token detected, let's snipe !
+                                printt_debug("buy condition 1", write_to_log=True)
 
                                 # Optional liquidity check
                                 if token["MINIMUM_LIQUIDITY_IN_DOLLARS"] != 0:
                                     liquidity_check_private_node(token, v1, 1)
 
-                                printt_debug("buy condition 1", write_to_log=True)
-                                
                                 # Create Tx
                                 tx_condition_1 = routerContract.functions.swapExactETHForTokens(
                                     0,
@@ -2801,7 +2869,7 @@ def scan_mempool_private_node(token, methodid):
                                     walletused,
                                     int(time() + + 60)
                                 ).buildTransaction({
-                                    'gasPrice': gas_Price,
+                                    'gasPrice': v1['gasPrice'],
                                     'gas': gaslimit,
                                     'value': amount,
                                     'from': walletused,
@@ -2822,12 +2890,11 @@ def scan_mempool_private_node(token, methodid):
                         #  --> so we set it as IN_TOKEN, to buy through BNB > inToken > token route
                         except Exception as e:
                             if input_decoded[1]['tokenA'] == tokenAddress:
-                                
+                                printt_debug("buy condition 2", write_to_log=True)
+
                                 # Optional liquidity check
                                 if token["MINIMUM_LIQUIDITY_IN_DOLLARS"] != 0:
                                     liquidity_check_private_node(token, v1, 2)
-
-                                printt_debug("buy condition 2", write_to_log=True)
                                 
                                 tx_condition_2 = routerContract.functions.swapExactETHForTokens(
                                     0,
@@ -2835,7 +2902,7 @@ def scan_mempool_private_node(token, methodid):
                                     walletused,
                                     int(time() + + 60)
                                 ).buildTransaction({
-                                    'gasPrice': gas_Price,
+                                    'gasPrice': v1['gasPrice'],
                                     'gas': gaslimit,
                                     'value': amount,
                                     'from': walletused,
@@ -2851,12 +2918,11 @@ def scan_mempool_private_node(token, methodid):
                                 txMade = True
                                 
                             elif input_decoded[1]['tokenB'] == tokenAddress:
+                                printt_debug("buy condition 3", write_to_log=True)
 
                                 # Optional liquidity check
                                 if token["MINIMUM_LIQUIDITY_IN_DOLLARS"] != 0:
                                     liquidity_check_private_node(token, v1, 3)
-
-                                printt_debug("buy condition 3", write_to_log=True)
 
                                 tx_condition_3 = routerContract.functions.swapExactETHForTokens(
                                     0,
@@ -2864,7 +2930,7 @@ def scan_mempool_private_node(token, methodid):
                                     walletused,
                                     int(time() + + 60)
                                 ).buildTransaction({
-                                    'gasPrice': gas_Price,
+                                    'gasPrice': v1['gasPrice'],
                                     'gas': gaslimit,
                                     'value': amount,
                                     'from': walletused,
@@ -2893,7 +2959,8 @@ def scan_mempool_private_node(token, methodid):
                             printt("- from:", v1['from'])
                             printt("- AddLiquidity TxHash:", AddLiquidityTxHash)
                             printt("")
-                            printt("And made a BUY order :", Web3.toHex(buy_tx_hash))
+                            printt("- And made a BUY order :", Web3.toHex(buy_tx_hash))
+                            printt("- With same Gas as AddLiquidity Tx:", v1['gasPrice'])
                             printt_ok("--------------------------------------------------------")
                             printt("")
 
@@ -3035,7 +3102,7 @@ def liquidity_check_private_node(token, v1, case):
         # 1/ calculate Custom Base token price in ETH/BNB...
         # 2/ convert this Custom Base token price in $
 
-        custom_base_price_in_base = calculate_custom_base_price(outToken, token['_BASE_DECIMALS'], token['_WETH_DECIMALS'])
+        custom_base_price_in_base = calculate_custom_base_price_big_ttl(outToken, token['_BASE_DECIMALS'], token['_WETH_DECIMALS'])
         printt_debug("custom_base_price_in_base:", custom_base_price_in_base)
         
         # 2/ convert this Custom Base token price in $
@@ -3058,6 +3125,7 @@ def liquidity_check_private_node(token, v1, case):
         printt_ok("- Liquidity added for", token['SYMBOL'], "=", "{:.14g}".format(liquidity_amount_in_dollars), "$", write_to_log=True)
         printt_ok("--> Let's buy!", write_to_log=True)
         printt_ok("------------------------------------------------", write_to_log=True)
+        sys.exit()
 
         buyToken = True
         return buyToken
@@ -3074,6 +3142,7 @@ def liquidity_check_private_node(token, v1, case):
         printt_warn("- Liquidity detected for", token['SYMBOL'], "=", "{:.14g}".format(liquidity_amount_in_dollars), "$", write_to_log=True)
         printt_warn("------------------------------------------------", write_to_log=True)
 
+        sys.exit()
         response = ""
         while response != "y" and response != "n":
             printt("What do you want to do?")
@@ -3832,6 +3901,7 @@ def calculate_base_price():
 @cached(cache=TTLCache(maxsize=128, ttl=30))
 def calculate_custom_base_price(outToken, DECIMALS_OUT, DECIMALS_weth):
     # This function is made to calculate price of custom base token in ETH/BNB...
+    # it is used for selling, so I put a ttl = 30 (more often than for sniping)
     
     printt_debug("ENTER: calculate_custom_base_price")
 
@@ -3851,8 +3921,37 @@ def calculate_custom_base_price(outToken, DECIMALS_OUT, DECIMALS_weth):
     else:
         custombasePrice = Decimal((reserves[1] / DECIMALS_weth) / (reserves[0] / DECIMALS_OUT))
     
-    printt_debug("custombasePrice: ", custombasePrice)
+    # printt_debug("custombasePrice: ", custombasePrice)
 
+    return custombasePrice
+
+
+@cached(cache=TTLCache(maxsize=128, ttl=1800))
+def calculate_custom_base_price_big_ttl(outToken, DECIMALS_OUT, DECIMALS_weth):
+    # This function is made to calculate price of custom base token in ETH/BNB...
+    # it has a ttl of 900s (15 minutes) because I consider that price does not move much in 30 minutes
+    # and it allows to accelerate a lot liquidity value calculation --> from 0.23s to 0.01s
+    
+    printt_debug("ENTER: calculate_custom_base_price_big_ttl for :", outToken)
+    
+    pair_address = fetch_pair2(outToken, weth, factoryContract)
+    # pair_address = factoryContract.functions.getPair(outToken, weth).call()
+    pair_contract = getContractLP(pair_address)
+    # pair_contract = client.eth.contract(address=pair_address, abi=lpAbi)
+    
+    # We use cache to check price of Custom Base pair for price calculation. Price will be updated every 30s (ttl = 30)
+    reserves = getReserves_with_cache(pair_contract)
+    
+    if ORDER_HASH.get(pair_address) is None:
+        value0 = pair_contract.functions.token0().call()
+        ORDER_HASH[pair_address] = (value0 == outToken)
+    if not ORDER_HASH[pair_address]:
+        custombasePrice = Decimal((reserves[0] / DECIMALS_weth) / (reserves[1] / DECIMALS_OUT))
+    else:
+        custombasePrice = Decimal((reserves[1] / DECIMALS_weth) / (reserves[0] / DECIMALS_OUT))
+    
+    # printt_debug("custombasePrice: ", custombasePrice)
+    
     return custombasePrice
 
 
@@ -3924,7 +4023,8 @@ def calculate_gas(token):
         printt_info("")
         printt_info("Current Gas Price =", gas_price)
         token['_GAS_TO_USE'] = (gas_price * ((int(token['BOOSTPERCENT'])) / 100)) + gas_price
-        printt_info("Tx will be created with gas =", token['_GAS_TO_USE'])
+        printt_info("- BUY  transaction will be created with same GAS as liquidity adding Tx detected")
+        printt_info("- SELL transaction will be created with gas you entered in tokens.json")
         printt_info("")
     else:
         token['_GAS_TO_USE'] = int(token['GAS'])
