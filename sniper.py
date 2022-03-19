@@ -2762,6 +2762,7 @@ def scan_mempool_private_node(token, methodid):
     
     # Preset of values to accelerate speed
     tokenAddress = Web3.toChecksumAddress(token['ADDRESS'])
+    printt_debug("tokenAddress:", tokenAddress)
     walletused = Web3.toChecksumAddress(settings['WALLETADDRESS'])
     amount = Web3.toWei(token['BUYAMOUNTINBASE'], 'ether')
     # Determine gas
@@ -2780,6 +2781,7 @@ def scan_mempool_private_node(token, methodid):
 
                     # If we detect the MethodID we've listed in 'input'
                     if v1['input'][:10] in methodid:
+                        printt_debug("detected AddLiquidity:", v1['hash'])
                         input_decoded = routerContract.decode_function_input(v1['input'])
                         # If liquidity is in native token (BNB/ETH...), it uses 'token' key
                         try:
@@ -2819,7 +2821,6 @@ def scan_mempool_private_node(token, methodid):
                         # If liquidity is in another token, it uses tokenA and tokenB instead
                         #  --> so we set it as IN_TOKEN, to buy through BNB > inToken > token route
                         except Exception as e:
-    
                             if input_decoded[1]['tokenA'] == tokenAddress:
                                 
                                 # Optional liquidity check
@@ -2886,8 +2887,6 @@ def scan_mempool_private_node(token, methodid):
                             AddLiquidityTxHash = v1['hash']
                             printt_ok("")
                             printt_ok("--------------------------------------------------------")
-                            printt_ok("WE FOUND SOMETHING IN MEMPOOL")
-                            printt_ok("")
                             printt_ok("Bot detected a AddLiquidity Event:")
                             printt("")
                             printt("- MethodID:", v1['input'][:10])
@@ -3015,8 +3014,7 @@ def liquidity_check_private_node(token, v1, case):
     if case == 1:
         # Easiest case
         printt_debug("liquidity_check_private_node case token")
-        printt_debug("v1['value']         :", v1['value'])
-        liquidity_amount = v1['value'] / token['_LIQUIDITY_DECIMALS']
+        liquidity_amount = int(v1['value'], 16) / token['_LIQUIDITY_DECIMALS']
         liquidity_amount_in_dollars = float(liquidity_amount) * float(token['_BASE_PRICE'])
     elif case == 2:
         printt_debug("liquidity_check_private_node case token A")
@@ -3051,6 +3049,9 @@ def liquidity_check_private_node(token, v1, case):
     if float(token['MINIMUM_LIQUIDITY_IN_DOLLARS']) <= float(liquidity_amount_in_dollars):
         printt_ok("")
         printt_ok("------------------------------------------------", write_to_log=True)
+        printt_ok("WE FOUND SOMETHING IN MEMPOOL - let's check liquidity")
+        printt_ok("Tx:", v1['hash'])
+        printt_ok("")
         printt_ok("ENOUGH LIQUIDITY", write_to_log=True)
         printt_ok("", write_to_log=True)
         printt_ok("- You have set MINIMUM_LIQUIDITY_IN_DOLLARS  =", token['MINIMUM_LIQUIDITY_IN_DOLLARS'], "$", write_to_log=True)
@@ -3064,6 +3065,9 @@ def liquidity_check_private_node(token, v1, case):
     # Not enough liquidity : inform the user, disable the token and break out of this loop
     else:
         printt_warn("------------------------------------------------", write_to_log=True)
+        printt_ok("WE FOUND SOMETHING IN MEMPOOL - let's check liquidity")
+        printt_ok("Tx:", v1['hash'])
+        printt_ok("")
         printt_warn("NOT ENOUGH LIQUIDITY", write_to_log=True)
         printt_warn("", write_to_log=True)
         printt_warn("- You have set MINIMUM_LIQUIDITY_IN_DOLLARS  =", token['MINIMUM_LIQUIDITY_IN_DOLLARS'], "$", write_to_log=True)
