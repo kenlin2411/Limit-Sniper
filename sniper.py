@@ -127,6 +127,7 @@ parser.add_argument("--sim_buy", type=str, help=argparse.SUPPRESS)
 parser.add_argument("--sim_sell", type=str, help=argparse.SUPPRESS)
 parser.add_argument("--debug", action='store_true', help=argparse.SUPPRESS)
 parser.add_argument("--benchmark", action='store_true', help=argparse.SUPPRESS)
+parser.add_argument("--analyze", type=str, help="analyze a Tx hash")
 
 command_line_args = parser.parse_args()
 
@@ -3013,19 +3014,20 @@ def liquidity_check_private_node(token, v1, case):
     
     if case == 1:
         # Easiest case
-        printt_debug("liquidity_check_private_node case 1")
-        liquidity_amount = int(v1['value'], 16) / token['_LIQUIDITY_DECIMALS']
+        printt_debug("liquidity_check_private_node case token")
+        printt_debug("v1['value']         :", v1['value'])
+        liquidity_amount = v1['value'] / token['_LIQUIDITY_DECIMALS']
         liquidity_amount_in_dollars = float(liquidity_amount) * float(token['_BASE_PRICE'])
     elif case == 2:
-        printt_debug("liquidity_check_private_node case 2")
+        printt_debug("liquidity_check_private_node case token A")
         input_decoded = routerContract.decode_function_input(v1['input'])
-        liquidity_amount = input_decoded[1]['amountADesired'] / token['_LIQUIDITY_DECIMALS']
+        liquidity_amount = input_decoded[1]['amountBDesired'] / token['_LIQUIDITY_DECIMALS']
         printt_debug("liquidity_amount:", liquidity_amount)
         outToken = Web3.toChecksumAddress(input_decoded[1]['tokenB'])
     elif case == 3:
-        printt_debug("liquidity_check_private_node case 3")
+        printt_debug("liquidity_check_private_node case token B")
         input_decoded = routerContract.decode_function_input(v1['input'])
-        liquidity_amount = input_decoded[1]['amountBDesired'] / token['_LIQUIDITY_DECIMALS']
+        liquidity_amount = input_decoded[1]['amountADesired'] / token['_LIQUIDITY_DECIMALS']
         printt_debug("liquidity_amount:", liquidity_amount)
         outToken = Web3.toChecksumAddress(input_decoded[1]['tokenA'])
 
@@ -3045,8 +3047,6 @@ def liquidity_check_private_node(token, v1, case):
 
 
     printt("")
-    printt("We detected ", token['_PAIR_SYMBOL'], "Liquidity =", "{:.4g}".format(liquidity_amount_in_dollars), "$", write_to_log=True)
-    printt("")
 
     if float(token['MINIMUM_LIQUIDITY_IN_DOLLARS']) <= float(liquidity_amount_in_dollars):
         printt_ok("")
@@ -3054,7 +3054,7 @@ def liquidity_check_private_node(token, v1, case):
         printt_ok("ENOUGH LIQUIDITY", write_to_log=True)
         printt_ok("", write_to_log=True)
         printt_ok("- You have set MINIMUM_LIQUIDITY_IN_DOLLARS  =", token['MINIMUM_LIQUIDITY_IN_DOLLARS'], "$", write_to_log=True)
-        printt_ok("- Liquidity added for", token['SYMBOL'], "=", "{:.4g}".format(liquidity_amount_in_dollars), "$", write_to_log=True)
+        printt_ok("- Liquidity added for", token['SYMBOL'], "=", "{:.14g}".format(liquidity_amount_in_dollars), "$", write_to_log=True)
         printt_ok("--> Let's buy!", write_to_log=True)
         printt_ok("------------------------------------------------", write_to_log=True)
 
@@ -5421,6 +5421,63 @@ def sell(token_dict, inToken, outToken):
         return False
 
 
+def analyze_tx(token, tx_hash):
+    # Function: analyze_tx
+    # ----------------------------
+    # provides details about a transaction
+    #
+    # tx_hash = the transaction hash
+    #
+    
+    tokenAddress = Web3.toChecksumAddress(token['ADDRESS'])
+
+    printt("token['_LIQUIDITY_DECIMALS']:", token['_LIQUIDITY_DECIMALS'])
+    printt("tokenAddress                :", tokenAddress)
+    
+    # Get transaction object
+    tx = client.eth.get_transaction(tx_hash)
+    printt("")
+    printt("-  Tx DECODED:  ----------------------------------------------------------------")
+    printt(tx)
+    printt(tx['r'].hex())
+    printt(tx['s'].hex())
+    printt("--------------------------------------------------------------------------------")
+    printt("")
+    # tx2 = client.eth.get_transaction_receipt(tx_hash)
+    # printt("")
+    # printt("-Tx DECODED:--------------------------------------------------------------------")
+    # printt(tx2)
+    # printt("--------------------------------------------------------------------------------")
+    # printt("")
+    # decode input data
+    try:
+        input_decoded = routerContract.decode_function_input(tx['input'])
+    except Exception:
+        printt("-  Input DECODED:  -------------------------------------------------------------")
+        printt_info("There is no 'input' to decode")
+        printt("--------------------------------------------------------------------------------")
+        printt("")
+        exit(0)
+    printt("-  Input DECODED:  -------------------------------------------------------------")
+    printt(input_decoded)
+    printt("--------------------------------------------------------------------------------")
+    printt("")
+    
+    try:
+        if input_decoded[1]['token'] == tokenAddress:
+            liquidity_check_private_node(token, tx, 1)
+            
+    except Exception:
+        if input_decoded[1]['tokenA'] == tokenAddress:
+            liquidity_check_private_node(token, tx, 2)
+    
+        elif input_decoded[1]['tokenB'] == tokenAddress:
+            liquidity_check_private_node(token, tx, 3)
+
+
+    exit(0)
+
+
 def benchmark():
     printt_ok('*** Start Benchmark Mode ***', write_to_log=True)
     printt('This benchmark will use your tokens.json: ADDRESS / LIQUIDITYINNATIVETOKEN / USECUSTOMBASEPAIR / BASEADDRESS')
@@ -5514,6 +5571,7 @@ def run():
         # preapprove_base(tokens)
         
         for token in tokens:
+    
     
             # tokens.json values logic control
             if token['MULTIPLEBUYS'].lower() == 'true' and token['KIND_OF_SWAP'].lower() == 'tokens':
@@ -5612,7 +5670,12 @@ def run():
             # Call of RugDoc API if parameter is set to True
             if token['RUGDOC_CHECK'] == 'true':
                 check_rugdoc_api(token)
-                
+
+            # analyze mode
+            if command_line_args.analyze:
+                tx_hash = command_line_args.analyze
+                analyze_tx(token, tx_hash)
+
         load_token_file_increment = 0
         tokens_file_modified_time = os.path.getmtime(command_line_args.tokens)
         first_liquidity_check = True
