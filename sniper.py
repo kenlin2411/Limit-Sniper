@@ -2966,13 +2966,13 @@ def scan_mempool_private_node(token, methodid):
                             AddLiquidityTxHash = v1['hash']
                             printt_ok("")
                             printt_ok("--------------------------------------------------------")
-                            printt_ok("Bot detected a AddLiquidity Event:")
+                            printt_ok("Bot detected a AddLiquidity Event:", write_to_log=True)
                             printt("")
                             printt("- MethodID:", v1['input'][:10])
                             printt("- from:", v1['from'])
-                            printt("- AddLiquidity TxHash:", AddLiquidityTxHash)
+                            printt("- AddLiquidity TxHash:", AddLiquidityTxHash, write_to_log=True)
                             printt("")
-                            printt("- And made a BUY order :", Web3.toHex(buy_tx_hash))
+                            printt("- And made a BUY order :", Web3.toHex(buy_tx_hash), write_to_log=True)
                             if token["GAS"] == 'same_as_tx':
                                 printt("- With same Gas as AddLiquidity Tx:", int(v1['gasPrice'], 16) / 1000000000)
                             else:
