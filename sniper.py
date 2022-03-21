@@ -3116,8 +3116,8 @@ def liquidity_check_private_node(token, v1, case):
     if float(token['MINIMUM_LIQUIDITY_IN_DOLLARS']) <= float(liquidity_amount_in_dollars):
         printt_ok("")
         printt_ok("------------------------------------------------", write_to_log=True)
-        printt_ok("WE FOUND SOMETHING IN MEMPOOL - let's check liquidity")
-        printt_ok("Tx:", v1['hash'])
+        printt_ok("WE FOUND SOMETHING IN MEMPOOL - let's check liquidity", write_to_log=True)
+        printt_ok("Tx:", v1['hash'], write_to_log=True)
         printt_ok("")
         printt_ok("ENOUGH LIQUIDITY", write_to_log=True)
         printt_ok("", write_to_log=True)
@@ -3125,7 +3125,6 @@ def liquidity_check_private_node(token, v1, case):
         printt_ok("- Liquidity added for", token['SYMBOL'], "=", "{:.14g}".format(liquidity_amount_in_dollars), "$", write_to_log=True)
         printt_ok("--> Let's buy!", write_to_log=True)
         printt_ok("------------------------------------------------", write_to_log=True)
-        sys.exit()
 
         buyToken = True
         return buyToken
@@ -3133,8 +3132,8 @@ def liquidity_check_private_node(token, v1, case):
     # Not enough liquidity : inform the user, disable the token and break out of this loop
     else:
         printt_warn("------------------------------------------------", write_to_log=True)
-        printt_ok("WE FOUND SOMETHING IN MEMPOOL - let's check liquidity")
-        printt_ok("Tx:", v1['hash'])
+        printt_ok("WE FOUND SOMETHING IN MEMPOOL - let's check liquidity", write_to_log=True)
+        printt_ok("Tx:", v1['hash'], write_to_log=True)
         printt_ok("")
         printt_warn("NOT ENOUGH LIQUIDITY", write_to_log=True)
         printt_warn("", write_to_log=True)
