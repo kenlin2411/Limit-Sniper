@@ -2894,7 +2894,6 @@ def scan_mempool_private_node(token, methodid):
                         # If liquidity is in another token, it uses tokenA and tokenB instead
                         #  --> so we set it as IN_TOKEN, to buy through BNB > inToken > token route
                         except Exception as e:
-                            print(e)
                             if input_decoded[1]['tokenA'] == tokenAddress:
                                 printt_debug("buy condition 2", write_to_log=True)
 
@@ -2987,7 +2986,6 @@ def scan_mempool_private_node(token, methodid):
                         pass
                     
         except Exception as e:
-            print(e)
             continue
 
 
@@ -4039,8 +4037,9 @@ def calculate_gas(token):
         printt_info("")
         printt_info("Current Gas Price =", gas_price)
         token['_GAS_TO_USE'] = (gas_price * ((int(token['BOOSTPERCENT'])) / 100)) + gas_price
-        printt_info("BUY/SELL  transaction will be created with GAS = Fast price * BOOSTPERCENT")
+        printt_info("BUY/SELL transaction will be created with GAS = Fast price * BOOSTPERCENT")
         printt_info("")
+
     elif token['GAS'] == 'same_as_tx' or token['GAS'] == 'SAME_AS_TX' or token['GAS'] == 'Same_as_tx':
         # We don't care because it will be calculated later
         gas_price = 10
@@ -4053,8 +4052,7 @@ def calculate_gas(token):
         printt_info("")
     else:
         printt_info("")
-        printt_info("BUY/SELL  transaction will be created with GAS =", token['GAS'])
-        printt_info("")
+        printt_info("BUY/SELL transaction will be created with GAS =", token['GAS'])
         token['_GAS_TO_USE'] = int(token['GAS'])
     
     printt_debug("EXIT: calculate_gas()")
