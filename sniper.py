@@ -1117,7 +1117,7 @@ printt("************************************************************************
 
 # Check for version
 #
-version = '2.2.1'
+version = '2.2.2'
 printt("YOUR BOT IS CURRENTLY RUNNING VERSION ", version, write_to_log=True)
 check_release()
 
@@ -2786,7 +2786,7 @@ def scan_mempool_public_node(token):
                                 response = ""
                                 while response != "y" and response != "n":
                                     printt("What do you want to do?")
-                                    response = input("                           Would you like to restart the bot and scan mempool again? (y/n): ")
+                                    response = input("                      Would you like to restart the bot and scan mempool again? (y/n): ")
 
                                 if response == "y":
                                     scan_mempool_classic(token)
@@ -2819,6 +2819,7 @@ def scan_mempool_private_node(token, methodid):
     walletused = Web3.toChecksumAddress(settings['WALLETADDRESS'])
     amount = Web3.toWei(token['BUYAMOUNTINBASE'], 'ether')
     # Determine gas
+    gasprice = Web3.toWei(token["_GAS_TO_USE"], 'gwei')
     gaslimit = int(token['GASLIMIT'])
 
     # Determine nonce
@@ -2858,6 +2859,10 @@ def scan_mempool_private_node(token, methodid):
                                 #  it's the token you've put in your tokens.json --> token detected, let's snipe !
                                 printt_debug("buy condition 1", write_to_log=True)
 
+                                # If user want, Gas can be the same as Tx
+                                if token["GAS"] == 'same_as_tx':
+                                    gasprice = v1['gasPrice']
+
                                 # Optional liquidity check
                                 if token["MINIMUM_LIQUIDITY_IN_DOLLARS"] != 0:
                                     liquidity_check_private_node(token, v1, 1)
@@ -2869,7 +2874,7 @@ def scan_mempool_private_node(token, methodid):
                                     walletused,
                                     int(time() + + 60)
                                 ).buildTransaction({
-                                    'gasPrice': v1['gasPrice'],
+                                    'gasPrice': gasprice,
                                     'gas': gaslimit,
                                     'value': amount,
                                     'from': walletused,
@@ -2889,8 +2894,13 @@ def scan_mempool_private_node(token, methodid):
                         # If liquidity is in another token, it uses tokenA and tokenB instead
                         #  --> so we set it as IN_TOKEN, to buy through BNB > inToken > token route
                         except Exception as e:
+                            print(e)
                             if input_decoded[1]['tokenA'] == tokenAddress:
                                 printt_debug("buy condition 2", write_to_log=True)
+
+                                # If user want, Gas can be the same as Tx
+                                if token["GAS"] == 'same_as_tx':
+                                    gasprice = v1['gasPrice']
 
                                 # Optional liquidity check
                                 if token["MINIMUM_LIQUIDITY_IN_DOLLARS"] != 0:
@@ -2902,7 +2912,7 @@ def scan_mempool_private_node(token, methodid):
                                     walletused,
                                     int(time() + + 60)
                                 ).buildTransaction({
-                                    'gasPrice': v1['gasPrice'],
+                                    'gasPrice': gasprice,
                                     'gas': gaslimit,
                                     'value': amount,
                                     'from': walletused,
@@ -2920,6 +2930,10 @@ def scan_mempool_private_node(token, methodid):
                             elif input_decoded[1]['tokenB'] == tokenAddress:
                                 printt_debug("buy condition 3", write_to_log=True)
 
+                                # If user want, Gas can be the same as Tx
+                                if token["GAS"] == 'same_as_tx':
+                                    gasprice = v1['gasPrice']
+                                    
                                 # Optional liquidity check
                                 if token["MINIMUM_LIQUIDITY_IN_DOLLARS"] != 0:
                                     liquidity_check_private_node(token, v1, 3)
@@ -2930,7 +2944,7 @@ def scan_mempool_private_node(token, methodid):
                                     walletused,
                                     int(time() + + 60)
                                 ).buildTransaction({
-                                    'gasPrice': v1['gasPrice'],
+                                    'gasPrice': gasprice,
                                     'gas': gaslimit,
                                     'value': amount,
                                     'from': walletused,
@@ -2960,7 +2974,10 @@ def scan_mempool_private_node(token, methodid):
                             printt("- AddLiquidity TxHash:", AddLiquidityTxHash)
                             printt("")
                             printt("- And made a BUY order :", Web3.toHex(buy_tx_hash))
-                            printt("- With same Gas as AddLiquidity Tx:", int(v1['gasPrice'], 16) / 1000000000)
+                            if token["GAS"] == 'same_as_tx':
+                                printt("- With same Gas as AddLiquidity Tx:", int(v1['gasPrice'], 16) / 1000000000)
+                            else:
+                                printt("- With Gas:", token["_GAS_TO_USE"])
                             printt_ok("--------------------------------------------------------")
                             printt("")
 
@@ -2970,6 +2987,7 @@ def scan_mempool_private_node(token, methodid):
                         pass
                     
         except Exception as e:
+            print(e)
             continue
 
 
@@ -3141,7 +3159,6 @@ def liquidity_check_private_node(token, v1, case):
         printt_warn("- Liquidity detected for", token['SYMBOL'], "=", "{:.14g}".format(liquidity_amount_in_dollars), "$", write_to_log=True)
         printt_warn("------------------------------------------------", write_to_log=True)
 
-        sys.exit()
         response = ""
         while response != "y" and response != "n":
             printt("What do you want to do?")
@@ -4022,10 +4039,22 @@ def calculate_gas(token):
         printt_info("")
         printt_info("Current Gas Price =", gas_price)
         token['_GAS_TO_USE'] = (gas_price * ((int(token['BOOSTPERCENT'])) / 100)) + gas_price
+        printt_info("BUY/SELL  transaction will be created with GAS = Fast price * BOOSTPERCENT")
+        printt_info("")
+    elif token['GAS'] == 'same_as_tx' or token['GAS'] == 'SAME_AS_TX' or token['GAS'] == 'Same_as_tx':
+        # We don't care because it will be calculated later
+        gas_price = 10
+        
+        printt_info("")
+        printt_info("Current Gas Price =", gas_price)
+        token['_GAS_TO_USE'] = (gas_price * ((int(token['BOOSTPERCENT'])) / 100)) + gas_price
         printt_info("- BUY  transaction will be created with same GAS as liquidity adding Tx detected")
         printt_info("- SELL transaction will be created with gas you entered in tokens.json")
         printt_info("")
     else:
+        printt_info("")
+        printt_info("BUY/SELL  transaction will be created with GAS =", token['GAS'])
+        printt_info("")
         token['_GAS_TO_USE'] = int(token['GAS'])
     
     printt_debug("EXIT: calculate_gas()")
@@ -5909,6 +5938,7 @@ def run():
 
                             else:
                                 # transaction is a SUCCESS
+                                printt_ok("")
                                 printt_ok("----------------------------------", write_to_log=True)
                                 printt_ok("SUCCESS : your buy Tx is confirmed", write_to_log=True)
                                 printt_ok("")
