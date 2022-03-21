@@ -1753,6 +1753,40 @@ elif settings["EXCHANGE"] == 'quickswap':
     settings['_STABLE_BASES'] = {'USDT': {'address': '0xc2132d05d31c914a87c6611c10748aeb04b58e8f', 'multiplier': 0},
                                  'USDC': {'address': '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', 'multiplier': 0}}
 
+elif settings["EXCHANGE"] == 'sushiswap-matic':
+    if settings['USECUSTOMNODE'] == 'true':
+        my_provider = settings['CUSTOMNODE']
+    else:
+        my_provider = "https://polygon-rpc.com"
+
+    if not my_provider:
+        printt_err('Custom node empty. Exiting')
+        exit(1)
+
+    if my_provider[0].lower() == 'h':
+        print(timestamp(), 'Using HTTPProvider')
+        client = Web3(Web3.HTTPProvider(my_provider))
+    elif my_provider[0].lower() == 'w':
+        print(timestamp(), 'Using WebsocketProvider')
+        client = Web3(Web3.WebsocketProvider(my_provider, websocket_timeout=360, websocket_kwargs={"max_size": 650000000}))
+    else:
+        print(timestamp(), 'Using IPCProvider')
+        client = Web3(Web3.IPCProvider(my_provider))
+
+    print(timestamp(), "Matic Chain Connected =", client.isConnected())
+    print(timestamp(), "Loading Sushi MATIC Smart Contracts...")
+    routerAddress = Web3.toChecksumAddress("0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506")
+    factoryAddress = Web3.toChecksumAddress("0xc35DADB65012eC5796536bD9864eD8773aBc74C4")
+    routerContract = client.eth.contract(address=routerAddress, abi=pangolinAbi)
+    factoryContract = client.eth.contract(address=factoryAddress, abi=factoryAbi)
+    weth = Web3.toChecksumAddress("0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270")
+    base_symbol = "MATIC"
+    rugdocchain = '&chain=poly'
+    modified = False
+    settings['_EXCHANGE_BASE_SYMBOL'] = 'MATIC'
+    settings['_STABLE_BASES'] = {'USDT': {'address': '0xc2132d05d31c914a87c6611c10748aeb04b58e8f', 'multiplier': 0},
+                                 'USDC': {'address': '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', 'multiplier': 0}}
+
 elif settings["EXCHANGE"] == 'polygon-apeswap':
     if settings['USECUSTOMNODE'] == 'true':
         my_provider = settings['CUSTOMNODE']
@@ -2746,13 +2780,14 @@ def scan_mempool_public_node(token):
                         token['_GAS_IS_CALCULATED'] = True
                         token['_GAS_TO_USE'] = int(pending['gasPrice']) / 1000000000
 
+                        AddLiquidityTxHash = pending['hash'].hex()
                         printt_ok("")
                         printt_ok("--------------------------------------------------------")
                         printt_ok("WE FOUND SOMETHING IN MEMPOOL", write_to_log=True)
                         printt_ok("")
                         printt("- Block number:", pending_block['number'], write_to_log=True)
                         printt("- Function:", str(decoded[0]), write_to_log=True)
-                        printt("- TxHash:", pending['hash'].hex(), write_to_log=True)
+                        printt("- TxHash:", AddLiquidityTxHash, write_to_log=True)
                         printt("- GAS will be the same as liquidity adding event for your BUY Tx: GAS=", token['_GAS_TO_USE'], write_to_log=True)
                         printt_ok("")
                         printt_ok("--------------------------------------------------------")
@@ -2781,20 +2816,22 @@ def scan_mempool_public_node(token):
 
                             liquidity_result = check_liquidity_amount_mempool(token, liquidity_amount)
                             if liquidity_result != 0:
+                                return AddLiquidityTxHash
                                 buyToken = True
                             else:
                                 response = ""
                                 while response != "y" and response != "n":
                                     printt("What do you want to do?")
-                                    response = input("                      Would you like to restart the bot and scan mempool again? (y/n): ")
+                                    response = input("                 Would you like to restart the bot and scan mempool again? (y/n): ")
 
                                 if response == "y":
-                                    scan_mempool_classic(token)
+                                    scan_mempool_public_node(token)
                                 else:
                                     sys.exit()
 
                         else:
                             # If we don't want to check liquidity... That's suicide but let's go!
+                            return AddLiquidityTxHash
                             buyToken = True
     
                             
@@ -2989,6 +3026,112 @@ def scan_mempool_private_node(token, methodid):
             continue
 
 
+def scan_mempool_pinksale_private_node(token):
+    printt_debug("ENTER scan_mempool_pinksale_private_node", write_to_log=True)
+
+    tokenBought = False
+
+    # Preset of values to accelerate speed
+    tokenPresaleAddress = token['PINKSALE_PRESALE_ADDRESS'].lower()
+    tokenPresaleAddressCheckSum = Web3.toChecksumAddress(token['PINKSALE_PRESALE_ADDRESS'])
+
+    walletused = Web3.toChecksumAddress(settings['WALLETADDRESS'])
+    amount = Web3.toWei(token['BUYAMOUNTINBASE'], 'ether')
+    # Determine gas
+    gasprice = Web3.toWei(token["_GAS_TO_USE"], 'gwei')
+    gaslimit = int(token['GASLIMIT'])
+
+    # Determine nonce
+    nonce = client.eth.getTransactionCount(Web3.toChecksumAddress(settings['WALLETADDRESS']))
+
+    printt("")
+    printt("--------------------------------------------------------")
+    printt("SCANNING MEMPOOL -", token['SYMBOL'], "token")
+    printt("")
+    printt("Bot will scan mempool to detect Pinksale finalize() function")
+    printt("")
+    printt_err("This function has to be used on a private node with proper setup, otherwise finalize() Tx won't be detected!")
+    printt("")
+    printt_warn("Do not make any transaction with this wallet before bot buys, because Nonce is pre-calculated")
+    printt("")
+    printt_warn("Don't worry if nothing appears : it's normal! Do not close the bot")
+    printt("")
+    printt("--------------------------------------------------------")
+    
+    # Start monitoring
+    while tokenBought == False:
+        try:
+            tx_pool = client.geth.txpool.content()['pending'].items()
+
+            for k,v in tx_pool:
+                for k1, v1 in v.items():
+        
+                    # If we detect the finalize() MethodID in 'input'
+                    if v1['input'] == '0x4bb278f3':
+    
+                        # If this finalize event is sent to Presale address --> it's our listing ! Let's snipe
+                        if v1['to'].lower() == tokenPresaleAddress:
+                            #  it's the token you've put in your tokens.json --> token detected, let's snipe !
+                            printt_debug("buy condition pinksale", write_to_log=True)
+
+                            # If user want, Gas can be the same as Tx
+                            if token["GAS"] == 'same_as_tx':
+                                gasprice = v1['gasPrice']
+
+                            # Create Tx
+                            tx_condition_pinksale = routerContract.functions.swapExactETHForTokens(
+                                0,
+                                [weth, tokenPresaleAddressCheckSum],
+                                walletused,
+                                int(time() + + 60)
+                            ).buildTransaction({
+                                'gasPrice': gasprice,
+                                'gas': gaslimit,
+                                'value': amount,
+                                'from': walletused,
+                                'nonce': nonce
+                            })
+
+                            # Sign the transaction
+                            signed_tx_condition_pinksale = client.eth.account.signTransaction(tx_condition_pinksale, private_key=settings['PRIVATEKEY'])
+
+                            # Send transaction (it has already been created before)
+                            buy_tx_hash = client.eth.sendRawTransaction(signed_tx_condition_pinksale.rawTransaction)
+                            
+                            txMade = True
+                        else:
+                            txMade = False
+
+                        # Let's snipe!
+                        if txMade:
+                            
+                            AddLiquidityTxHash = v1['hash']
+                            printt_ok("")
+                            printt_ok("--------------------------------------------------------")
+                            printt_ok("Bot detected a finalize() event:", write_to_log=True)
+                            printt("")
+                            printt("- MethodID:", v1['input'][:10])
+                            printt("- from:", v1['from'])
+                            printt("- AddLiquidity TxHash:", AddLiquidityTxHash, write_to_log=True)
+                            printt("")
+                            printt("- And made a BUY order :", Web3.toHex(buy_tx_hash), write_to_log=True)
+                            if token["GAS"] == 'same_as_tx':
+                                printt("- With same Gas as AddLiquidity Tx:", int(v1['gasPrice'], 16) / 1000000000)
+                            else:
+                                printt("- With Gas:", token["_GAS_TO_USE"])
+                            printt_ok("--------------------------------------------------------")
+                            printt("")
+
+                            tokenBought = True
+                            return AddLiquidityTxHash, buy_tx_hash
+                    else:
+                        pass
+                    
+        except Exception as e:
+            print(e)
+            continue
+
+
 def scan_mempool_private_node_work_in_progress(token, methodid):
     printt_debug("ENTER scan_mempool_private_node_work_in_progress", write_to_log=True)
     
@@ -3024,54 +3167,6 @@ def scan_mempool_private_node_work_in_progress(token, methodid):
             #
             # printt(pool_info)
             
-        except Exception as e:
-            print(e)
-            continue
-
-
-def scan_mempool_pinksale_private_node(token):
-    printt_debug("ENTER scan_mempool_pinksale_private_node", write_to_log=True)
-    
-    printt("")
-    printt("--------------------------------------------------------")
-    printt("SCANNING MEMPOOL -", token['SYMBOL'], "token")
-    printt("")
-    printt("Bot will scan mempool to detect AddLiquidity functions")
-    printt("")
-    printt_err("This function has to be used on a private node with proper setup, otherwise AddLiquidity Tx won't be detected!")
-    printt("")
-    printt_warn("Do not make any transaction with this wallet before bot buys, because Nonce is pre-calculated")
-    printt("")
-    printt_warn("Don't worry if nothing appears : it's normal! Do not close the bot")
-    printt("")
-    printt("--------------------------------------------------------")
-    
-    buyToken = False
-    tokenPresaleAddress = token['PINKSALE_PRESALE_ADDRESS'].lower()
-    while buyToken == False:
-        try:
-            tx_pool = client.geth.txpool.content()['pending'].items()
-            
-            for k, v in tx_pool:
-                for k1, v1 in v.items():
-                    
-                    # If we detect the MethodID we've listed in 'input'
-                    if v1['input'][:10] == '0x4bb278f3':
-                        # If this finalize event is sent to Presale address --> it's our listing ! Let's snipe
-                        if v1['to'].lower() == tokenPresaleAddress:
-                            AddLiquidityTxHash = v1['hash']
-                            printt_ok("")
-                            printt_ok("--------------------------------------------------------")
-                            printt_ok("WE DETECTED PINKSALE LISTING")
-                            printt_ok("")
-                            printt("- TxHash:", AddLiquidityTxHash)
-                            printt_ok("--------------------------------------------------------")
-        
-                            buyToken = True
-                            return AddLiquidityTxHash
-
-                    else:
-                        pass
         except Exception as e:
             print(e)
             continue
@@ -4802,7 +4897,7 @@ def preapprove_base(token):
     printt_debug("EXIT - preapprove_base()")
 
 
-def buy(token_dict, inToken, outToken, pwd, nonce):
+def buy(token_dict, inToken, outToken, pwd):
     # Function: buy
     # ----------------------------
     # purchases the amount of tokens specified for the contract specified
@@ -4830,6 +4925,8 @@ def buy(token_dict, inToken, outToken, pwd, nonce):
     multiplebuys = token_dict['MULTIPLEBUYS']
     buycount = token_dict['BUYCOUNT']
     CONTRACT_DECIMALS = token_dict['_CONTRACT_DECIMALS']
+
+    nonce = client.eth.getTransactionCount(settings['WALLETADDRESS'])
 
     # Check for amount of failed transactions before buy (MAX_FAILED_TRANSACTIONS_IN_A_ROW parameter)
     printt_debug("debug _FAILED_TRANSACTIONS:", token_dict['_FAILED_TRANSACTIONS'])
@@ -5882,13 +5979,14 @@ def run():
                         # let's scans mempool
                         #
                         if settings['MEMPOOL_METHOD'] == 'public_node':
-                            scan_mempool_public_node(token)
+                            AddLiquidity_TxHash = scan_mempool_public_node(token)
+                            buy_TxHash = buy(token, token['_OUT_TOKEN'], token['_IN_TOKEN'], userpassword)
                         elif settings['MEMPOOL_METHOD'] == 'private_node':
                             AddLiquidity_TxHash, buy_TxHash = scan_mempool_private_node(token, methods_id)
                         elif settings['MEMPOOL_METHOD'] == 'wip':
                             AddLiquidity_TxHash = scan_mempool_private_node_work_in_progress(token, methods_id)
                         elif settings['MEMPOOL_METHOD'] == 'pinksale':
-                            AddLiquidity_TxHash = scan_mempool_pinksale_private_node(token)
+                            AddLiquidity_TxHash, buy_TxHash = scan_mempool_pinksale_private_node(token)
                         else:
                             printt_err("Wrong value in MEMPOOL_METHOD setting.")
                             sleep(10)
