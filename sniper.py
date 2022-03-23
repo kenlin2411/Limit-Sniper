@@ -6333,25 +6333,36 @@ try:
     # Handle any processing that is necessary to load the private key for the wallet
     parse_wallet_settings(settings, userpassword)
     
-    # The LIMIT balance of the user.
-    true_balance = auth()
+    # # The LIMIT balance of the user.
+    # true_balance = auth()
     
-    if true_balance >= 100:
-        print(timestamp(), "Sniper Subscriptions Active")
-        if command_line_args.slow_mode or settings['SLOW_MODE'] == 'true':
-            printt_info("RUNNING IN SLOW MODE = price check every 0.5s")
-            cooldown = 0.50
-        elif settings['SLOW_MODE'] == 'super_slow':
-            printt_info("RUNNING IN SUPER SLOW MODE = price check every 3s")
-            cooldown = 3
-        else:
-            cooldown = 0.01
-        runLoop()
+    # if true_balance >= 100:
+    #     print(timestamp(), "Sniper Subscriptions Active")
+    #     if command_line_args.slow_mode or settings['SLOW_MODE'] == 'true':
+    #         printt_info("RUNNING IN SLOW MODE = price check every 0.5s")
+    #         cooldown = 0.50
+    #     elif settings['SLOW_MODE'] == 'super_slow':
+    #         printt_info("RUNNING IN SUPER SLOW MODE = price check every 3s")
+    #         cooldown = 3
+    #     else:
+    #         cooldown = 0.01
+    #     runLoop()
     
+    # else:
+    #     printt_err("You Need to Hold 100 $LIMIT tokens to use this bot!")
+    #     sleep(10)
+    #     sys.exit()
+
+    print(timestamp(), "Sniper Subscriptions Active")
+    if command_line_args.slow_mode or settings['SLOW_MODE'] == 'true':
+        printt_info("RUNNING IN SLOW MODE = price check every 0.5s")
+        cooldown = 0.50
+    elif settings['SLOW_MODE'] == 'super_slow':
+        printt_info("RUNNING IN SUPER SLOW MODE = price check every 3s")
+        cooldown = 3
     else:
-        printt_err("You Need to Hold 100 $LIMIT tokens to use this bot!")
-        sleep(10)
-        sys.exit()
+        cooldown = 0.01
+    runLoop()
 
 except Exception as e:
     printt_err("ERROR SETTINGS . Please go to /log folder and open your logs: you will find more details.")
